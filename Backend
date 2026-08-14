@@ -39,6 +39,13 @@ var HOJA = "turnos";
 var CALENDARIO = "";   // vacío = tu calendario principal. Si no, poné el ID del calendario.
 var SALON = "Salón";   // aparece como ubicación del evento
 
+// Cuántas clientas podés atender al mismo tiempo.
+var CAPACIDAD = 2;
+
+// Servicios que ocupan el salón entero: mientras hay uno, no entra nada más.
+// Los nombres tienen que coincidir EXACTO con los de CONFIG en index.html.
+var EXCLUSIVOS = ["Balayage"];
+
 /* ================= entrada ================= */
 
 function doGet(e) {
@@ -144,8 +151,9 @@ function reservar(p) {
   if (!/^\d{2}:\d{2}$/.test(hora))        return { ok: false, error: "hora_invalida" };
   if (!(durac > 0 && durac <= 480))       return { ok: false, error: "duracion_invalida" };
 
-  var nombre = String(p.nombre || "").trim().slice(0, 80);
-  var tel    = String(p.tel || "").trim().slice(0, 40);
+  var servicio = String(p.servicio || "Turno").slice(0, 80);
+  var nombre   = String(p.nombre || "").trim().slice(0, 80);
+  var tel      = String(p.tel || "").trim().slice(0, 40);
   if (nombre.length < 3) return { ok: false, error: "nombre_invalido" };
   if (tel.replace(/\D/g, "").length < 8) return { ok: false, error: "tel_invalido" };
 
@@ -155,17 +163,12 @@ function reservar(p) {
 
   try {
     var ini = aMin(hora), fin = ini + durac;
-    var choca = filasAObjetos().some(function (t) {
-      if (t.fecha !== fecha) return false;
-      var a = aMin(t.hora), b = a + t.dur;
-      return ini < b && a < fin;
-    });
-    if (choca) return { ok: false, error: "ocupado" };
+    if (!entra(fecha, ini, fin, servicio)) return { ok: false, error: "ocupado" };
 
     var turno = {
       id: "t" + new Date().getTime() + Math.random().toString(36).slice(2, 7),
       fecha: fecha, hora: hora, dur: durac,
-      servicio: String(p.servicio || "Turno").slice(0, 80),
+      servicio: servicio,
       precio: String(p.precio || "").slice(0, 30),
       nombre: nombre, tel: tel
     };
@@ -181,6 +184,41 @@ function reservar(p) {
   } finally {
     candado.releaseLock();
   }
+}
+
+/**
+ * Decide si entra un turno nuevo en [ini, fin) de ese día.
+ * Reglas: los servicios EXCLUSIVOS no admiten nada en paralelo;
+ * el resto convive hasta CAPACIDAD turnos simultáneos.
+ */
+function entra(fecha, ini, fin, servicio) {
+  var choques = filasAObjetos().filter(function (t) {
+    if (t.fecha !== fecha) return false;
+    var a = aMin(t.hora), b = a + t.dur;
+    return ini < b && a < fin;
+  });
+  if (!choques.length) return true;
+
+  if (EXCLUSIVOS.indexOf(servicio) > -1) return false;
+  for (var i = 0; i < choques.length; i++) {
+    if (EXCLUSIVOS.indexOf(choques[i].servicio) > -1) return false;
+  }
+
+  var puntos = [ini];
+  choques.forEach(function (t) {
+    var a = aMin(t.hora);
+    if (a > ini && a < fin) puntos.push(a);
+  });
+
+  for (var p = 0; p < puntos.length; p++) {
+    var momento = puntos[p], simultaneos = 0;
+    choques.forEach(function (t) {
+      var a = aMin(t.hora), b = a + t.dur;
+      if (a <= momento && momento < b) simultaneos++;
+    });
+    if (simultaneos + 1 > CAPACIDAD) return false;
+  }
+  return true;
 }
 
 function cancelar(id) {
