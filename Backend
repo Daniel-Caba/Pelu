@@ -1,0 +1,243 @@
+/**
+ * Backend de turnos — Google Apps Script
+ * ---------------------------------------------------------------
+ * Guarda los turnos en una hoja de cálculo y crea el evento
+ * directamente en tu Google Calendar.
+ *
+ * CÓMO INSTALARLO (10 minutos, gratis):
+ *
+ *  1. Andá a https://sheets.new y creá una planilla nueva.
+ *     Ponele de nombre "Turnos".
+ *
+ *  2. En el menú: Extensiones → Apps Script.
+ *
+ *  3. Borrá todo lo que aparezca y pegá este archivo completo.
+ *
+ *  4. Arriba a la izquierda, hacé clic en el ícono de engranaje
+ *     (Configuración del proyecto) y verificá que la zona horaria
+ *     sea "(GMT-03:00) Buenos Aires". Si no, cambiala.
+ *
+ *  5. Editá la constante CALENDARIO de acá abajo si querés que los
+ *     turnos vayan a un calendario distinto del principal.
+ *
+ *  6. Botón azul "Implementar" → "Nueva implementación".
+ *       Tipo:               Aplicación web
+ *       Ejecutar como:      Yo
+ *       Quién tiene acceso: Cualquier usuario     ← importante
+ *     Dale "Implementar" y aceptá los permisos que pide
+ *     (necesita permiso para tu planilla y tu calendario).
+ *
+ *  7. Copiá la "URL de la aplicación web" que te muestra y pegala
+ *     en la variable API de index.html.
+ *
+ * Si más adelante cambiás este código, tenés que volver a
+ * "Implementar" → "Administrar implementaciones" → editar → nueva
+ * versión, si no la URL sigue sirviendo la versión vieja.
+ */
+
+var HOJA = "turnos";
+var CALENDARIO = "";   // vacío = tu calendario principal. Si no, poné el ID del calendario.
+var SALON = "Salón";   // aparece como ubicación del evento
+
+/* ================= entrada ================= */
+
+function doGet(e) {
+  var accion = (e.parameter.accion || "").toString();
+  var salida;
+
+  try {
+    if (accion === "turnos")        salida = { ok: true, turnos: turnosDelDia(e.parameter.fecha) };
+    else if (accion === "proximos") salida = { ok: true, turnos: proximos() };
+    else if (accion === "reservar") salida = reservar(e.parameter);
+    else if (accion === "cancelar") salida = cancelar(e.parameter.id);
+    else                            salida = { ok: false, error: "accion_desconocida" };
+  } catch (err) {
+    salida = { ok: false, error: String(err) };
+  }
+
+  return ContentService
+    .createTextOutput(JSON.stringify(salida))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+/* ================= hoja ================= */
+
+function hoja() {
+  var libro = SpreadsheetApp.getActiveSpreadsheet();
+  var h = libro.getSheetByName(HOJA);
+  if (!h) {
+    h = libro.insertSheet(HOJA);
+    h.appendRow(["id","fecha","hora","dur","servicio","precio","nombre","tel","creado","eventoId"]);
+    h.setFrozenRows(1);
+  }
+  return h;
+}
+
+function filasAObjetos() {
+  var datos = hoja().getDataRange().getValues();
+  var out = [];
+  for (var i = 1; i < datos.length; i++) {
+    var f = datos[i];
+    if (!f[0]) continue;
+    out.push({
+      fila: i + 1,
+      id: String(f[0]),
+      fecha: normalizarFecha(f[1]),
+      hora: normalizarHora(f[2]),
+      dur: Number(f[3]),
+      servicio: String(f[4]),
+      precio: String(f[5]),
+      nombre: String(f[6]),
+      tel: String(f[7]),
+      eventoId: String(f[9] || "")
+    });
+  }
+  return out;
+}
+
+// La planilla a veces devuelve fechas como Date; las normalizamos a "YYYY-MM-DD"
+function normalizarFecha(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, husoHorario(), "yyyy-MM-dd");
+  return String(v).trim();
+}
+function normalizarHora(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, husoHorario(), "HH:mm");
+  return String(v).trim();
+}
+function husoHorario() {
+  return SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone() || "America/Argentina/Buenos_Aires";
+}
+
+/* ================= consultas ================= */
+
+function turnosDelDia(fecha) {
+  if (!fecha) return [];
+  return filasAObjetos()
+    .filter(function (t) { return t.fecha === fecha; })
+    .sort(function (a, b) { return aMin(a.hora) - aMin(b.hora); })
+    .map(limpiar);
+}
+
+function proximos() {
+  var hoy = Utilities.formatDate(new Date(), husoHorario(), "yyyy-MM-dd");
+  return filasAObjetos()
+    .filter(function (t) { return t.fecha >= hoy; })
+    .sort(function (a, b) { return (a.fecha + a.hora) < (b.fecha + b.hora) ? -1 : 1; })
+    .map(limpiar);
+}
+
+function limpiar(t) {
+  return {
+    id: t.id, fecha: t.fecha, hora: t.hora, dur: t.dur,
+    servicio: t.servicio, precio: t.precio, nombre: t.nombre, tel: t.tel
+  };
+}
+
+/* ================= reservar ================= */
+
+function reservar(p) {
+  var fecha = String(p.fecha || "");
+  var hora  = String(p.hora  || "");
+  var durac = Number(p.dur   || 0);
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return { ok: false, error: "fecha_invalida" };
+  if (!/^\d{2}:\d{2}$/.test(hora))        return { ok: false, error: "hora_invalida" };
+  if (!(durac > 0 && durac <= 480))       return { ok: false, error: "duracion_invalida" };
+
+  var nombre = String(p.nombre || "").trim().slice(0, 80);
+  var tel    = String(p.tel || "").trim().slice(0, 40);
+  if (nombre.length < 3) return { ok: false, error: "nombre_invalido" };
+  if (tel.replace(/\D/g, "").length < 8) return { ok: false, error: "tel_invalido" };
+
+  // Candado real: si dos clientas mandan a la vez, una espera a la otra.
+  var candado = LockService.getScriptLock();
+  if (!candado.tryLock(15000)) return { ok: false, error: "ocupado_intentar_de_nuevo" };
+
+  try {
+    var ini = aMin(hora), fin = ini + durac;
+    var choca = filasAObjetos().some(function (t) {
+      if (t.fecha !== fecha) return false;
+      var a = aMin(t.hora), b = a + t.dur;
+      return ini < b && a < fin;
+    });
+    if (choca) return { ok: false, error: "ocupado" };
+
+    var turno = {
+      id: "t" + new Date().getTime() + Math.random().toString(36).slice(2, 7),
+      fecha: fecha, hora: hora, dur: durac,
+      servicio: String(p.servicio || "Turno").slice(0, 80),
+      precio: String(p.precio || "").slice(0, 30),
+      nombre: nombre, tel: tel
+    };
+
+    var eventoId = crearEvento(turno);
+
+    hoja().appendRow([
+      turno.id, turno.fecha, turno.hora, turno.dur, turno.servicio,
+      turno.precio, turno.nombre, turno.tel, new Date(), eventoId
+    ]);
+
+    return { ok: true, turno: turno };
+  } finally {
+    candado.releaseLock();
+  }
+}
+
+function cancelar(id) {
+  if (!id) return { ok: false, error: "falta_id" };
+  var candado = LockService.getScriptLock();
+  candado.waitLock(15000);
+  try {
+    var todos = filasAObjetos();
+    for (var i = 0; i < todos.length; i++) {
+      if (todos[i].id === id) {
+        borrarEvento(todos[i].eventoId);
+        hoja().deleteRow(todos[i].fila);
+        return { ok: true };
+      }
+    }
+    return { ok: false, error: "no_encontrado" };
+  } finally {
+    candado.releaseLock();
+  }
+}
+
+/* ================= calendario ================= */
+
+function calendario() {
+  return CALENDARIO ? CalendarApp.getCalendarById(CALENDARIO) : CalendarApp.getDefaultCalendar();
+}
+
+function crearEvento(t) {
+  try {
+    var partes = t.fecha.split("-");
+    var ini = new Date(+partes[0], +partes[1] - 1, +partes[2], aMin(t.hora) / 60 | 0, aMin(t.hora) % 60);
+    var fin = new Date(ini.getTime() + t.dur * 60000);
+
+    var ev = calendario().createEvent(
+      t.servicio + " — " + t.nombre,
+      ini, fin,
+      {
+        description: "Turno reservado desde la web.\nWhatsApp: " + t.tel +
+                     (t.precio ? "\nPrecio: " + t.precio : ""),
+        location: SALON
+      }
+    );
+    return ev.getId();
+  } catch (err) {
+    // Si el calendario falla, igual guardamos el turno en la planilla.
+    return "";
+  }
+}
+
+function borrarEvento(eventoId) {
+  if (!eventoId) return;
+  try { calendario().getEventById(eventoId).deleteEvent(); } catch (err) {}
+}
+
+/* ================= util ================= */
+
+function aMin(hhmm) {
+  var p = String(hhmm).split(":");
+  return (parseInt(p[0], 10) || 0) * 60 + (parseInt(p[1], 10) || 0);
+}
