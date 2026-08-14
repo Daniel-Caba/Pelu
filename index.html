@@ -210,18 +210,20 @@ var API = "https://script.google.com/macros/s/AKfycbwM8jLNaYNGR59f5R_sc1liuepQ1E
 
 var CONFIG = {
   salon: "Salón",
-  pin: "1234",          // para entrar al panel
-  paso: 30,             // cada cuántos minutos puede arrancar un turno
+  pin: "1234",
+  paso: 30,
 
   servicios: [
-    { id:"s1", nombre:"Corte y brushing",          dur:60,  precio:"$18.000" },
-    { id:"s2", nombre:"Brushing",                  dur:45,  precio:"$12.000" },
-    { id:"s3", nombre:"Color / retoque de raíz",   dur:120, precio:"$45.000" },
-    { id:"s4", nombre:"Mechas / balayage",         dur:180, precio:"$75.000" },
-    { id:"s5", nombre:"Tratamiento capilar",       dur:90,  precio:"$38.000" }
+    { id:"s1", nombre:"Balayage",                                    dur:180, precio:"" },
+    { id:"s2", nombre:"Gorra",                                       dur:120, precio:"" },
+    { id:"s3", nombre:"Color masculino",                             dur:45,  precio:"" },
+    { id:"s4", nombre:"Tratamiento capilar",                         dur:60,  precio:"" },
+    { id:"s5", nombre:"Lavado, secado y planchado",                  dur:45,  precio:"" },
+    { id:"s6", nombre:"Uñas / Capping / Semi permanente / Esculpidas", dur:120, precio:"" },
+    { id:"s7", nombre:"Pestañas",                                    dur:90,  precio:"" },
+    { id:"s8", nombre:"Tatuaje — consulta",                          dur:60,  precio:"" }
   ],
 
-  // 0 = domingo … 6 = sábado.  null = cerrado
   horario: {
     "0": null,
     "1": null,
