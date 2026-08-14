@@ -214,15 +214,23 @@ var CONFIG = {
   paso: 30,
   ultimoInicio: "14:00",
 
+  // Cuántas clientas podés atender al mismo tiempo.
+  capacidad: 2,
+
+  // horas:     si está, el servicio SOLO se puede reservar en esos horarios.
+  // exclusivo: si es true, ocupa el salón entero (no entra nada en paralelo).
   servicios: [
-    { id:"s1", nombre:"Balayage",                                    dur:180, precio:"" },
-    { id:"s2", nombre:"Gorra",                                       dur:120, precio:"" },
-    { id:"s3", nombre:"Color masculino",                             dur:45,  precio:"" },
-    { id:"s4", nombre:"Tratamiento capilar",                         dur:60,  precio:"" },
-    { id:"s5", nombre:"Lavado, secado y planchado",                  dur:45,  precio:"" },
+    { id:"s1", nombre:"Balayage",                                      dur:180, precio:"",
+      horas:["08:00","10:00","12:00","14:00"], exclusivo:true },
+    { id:"s2", nombre:"Gorra",                                         dur:120, precio:"",
+      horas:["08:00","10:00","12:00","14:00"] },
+    { id:"s3", nombre:"Color masculino",                               dur:45,  precio:"",
+      horas:["08:00","10:00","12:00","14:00"] },
+    { id:"s4", nombre:"Tratamiento capilar",                           dur:60,  precio:"" },
+    { id:"s5", nombre:"Lavado, secado y planchado",                    dur:45,  precio:"" },
     { id:"s6", nombre:"Uñas / Capping / Semi permanente / Esculpidas", dur:120, precio:"" },
-    { id:"s7", nombre:"Pestañas",                                    dur:90,  precio:"" },
-    { id:"s8", nombre:"Tatuaje",                          dur:60,  precio:"" }
+    { id:"s7", nombre:"Pestañas",                                      dur:90,  precio:"" },
+    { id:"s8", nombre:"Tatuaje",                                       dur:60,  precio:"" }
   ],
 
   horario: {
@@ -234,7 +242,6 @@ var CONFIG = {
     "5": ["08:00","17:00"],
     "6": ["08:00","17:00"]
   }
-  
 };
 
 /* ══════════════════════════════════════════════════════════════════
@@ -308,8 +315,52 @@ function aMin(h){ var p = String(h).split(":"); return (parseInt(p[0],10)||0)*60
 function aHora(m){ return String(Math.floor(m/60)).padStart(2,"0") + ":" + String(m%60).padStart(2,"0"); }
 function fechaDesdeIso(s){ var p = s.split("-"); return new Date(+p[0], +p[1]-1, +p[2]); }
 function dur(m){ if(m < 60) return m + " min"; var h = Math.floor(m/60), r = m%60; return h + " h" + (r ? " " + r : ""); }
+function esExclusivo(nombreServicio){
+  for(var i=0;i<CONFIG.servicios.length;i++){
+    if(CONFIG.servicios[i].nombre === nombreServicio) return !!CONFIG.servicios[i].exclusivo;
+  }
+  return false;
+}
+
+// Turnos ya reservados que se pisan con el tramo [ini, fin)
+function solapados(lista, ini, fin){
+  return lista.filter(function(r){
+    var a = aMin(r.hora), b = a + Number(r.dur);
+    return ini < b && a < fin;
+  });
+}
+
+// ¿Entra un turno nuevo en [ini, fin)?
+// Devuelve null si entra, o el motivo por el que no.
+function porQueNoEntra(lista, ini, fin, nuevoEsExclusivo){
+  var choques = solapados(lista, ini, fin);
+  if(!choques.length) return null;
+
+  if(nuevoEsExclusivo) return "exclusivo";
+  for(var i=0;i<choques.length;i++){
+    if(esExclusivo(choques[i].servicio)) return "exclusivo";
+  }
+
+  // La cantidad de turnos simultáneos solo cambia cuando arranca uno,
+  // así que alcanza con contar en esos instantes.
+  var puntos = [ini];
+  choques.forEach(function(r){
+    var a = aMin(r.hora);
+    if(a > ini && a < fin) puntos.push(a);
+  });
+  for(var p=0;p<puntos.length;p++){
+    var momento = puntos[p], simultaneos = 0;
+    choques.forEach(function(r){
+      var a = aMin(r.hora), b = a + Number(r.dur);
+      if(a <= momento && momento < b) simultaneos++;
+    });
+    if(simultaneos + 1 > CONFIG.capacidad) return "lleno";
+  }
+  return null;
+}
+
 function seSuperpone(lista, ini, fin){
-  return lista.some(function(r){ var a = aMin(r.hora), b = a + Number(r.dur); return ini < b && a < fin; });
+  return porQueNoEntra(lista, ini, fin, false) !== null;
 }
 
 /* ---------- estado ---------- */
@@ -389,13 +440,30 @@ function pintarAgenda(){
   var esHoy = sel.fecha === isoFecha(ahora);
   var minAhora = ahora.getHours()*60 + ahora.getMinutes();
 
-  var limite = CONFIG.ultimoInicio ? aMin(CONFIG.ultimoInicio) : cierra;
-  var slots = [];
-  for(var t = abre; t <= limite && t + sel.servicio.dur <= cierra; t += CONFIG.paso){
+  // Inicios posibles: los fijos del servicio, o cada CONFIG.paso minutos
+  var inicios = [];
+  if(sel.servicio.horas && sel.servicio.horas.length){
+    sel.servicio.horas.forEach(function(h){
+      var t = aMin(h);
+      if(t >= abre && t + sel.servicio.dur <= cierra) inicios.push(t);
+    });
+  } else {
+    var limite = CONFIG.ultimoInicio ? aMin(CONFIG.ultimoInicio) : cierra;
+    for(var t = abre; t <= limite && t + sel.servicio.dur <= cierra; t += CONFIG.paso) inicios.push(t);
+  }
+
+  var exclusivo = !!sel.servicio.exclusivo;
+  var slots = inicios.map(function(t){
     var fin = t + sel.servicio.dur;
     var pasado = esHoy && t <= minAhora + 30;
-    slots.push({ ini:t, fin:fin, hora:aHora(t), pasado:pasado, libre: !seSuperpone(reservasDia, t, fin) && !pasado });
-  }
+    var motivo = porQueNoEntra(reservasDia, t, fin, exclusivo);
+    var ocupados = solapados(reservasDia, t, fin).length;
+    return {
+      ini: t, fin: fin, hora: aHora(t), pasado: pasado,
+      libre: !motivo && !pasado,
+      ultimo: !motivo && !pasado && !exclusivo && ocupados > 0
+    };
+  });
 
   if(!slots.some(function(s){ return s.libre; })){
     cont.innerHTML = '<div class="vacio">No queda lugar para ese servicio este día. Probá con otro.</div>';
@@ -410,7 +478,9 @@ function pintarAgenda(){
     b.setAttribute("aria-pressed", sel.hora === s.hora ? "true" : "false");
     b.innerHTML = '<span class="hora"></span><span class="regla"></span><span class="estado"></span>';
     b.querySelector(".hora").textContent = s.hora;
-    b.querySelector(".estado").textContent = s.libre ? "hasta " + aHora(s.fin) : (s.pasado ? "ya pasó" : "reservado");
+    b.querySelector(".estado").textContent = s.libre
+      ? (s.ultimo ? "último lugar" : "hasta " + aHora(s.fin))
+      : (s.pasado ? "ya pasó" : "reservado");
     if(!s.libre){
       var x = document.createElement("span");
       x.className = "tachado" + (recien === s.hora ? " recien" : "");
