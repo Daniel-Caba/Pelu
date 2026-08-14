@@ -217,11 +217,12 @@ var CONFIG = {
   // Cuántas clientas podés atender al mismo tiempo.
   capacidad: 2,
 
-  // horas:     si está, el servicio SOLO se puede reservar en esos horarios.
-  // exclusivo: si es true, ocupa el salón entero (no entra nada en paralelo).
+  // horas: si está, el servicio SOLO se puede reservar en esos horarios.
+  // max:   cuántos turnos de ESE servicio podés tener a la vez.
+  //        Si no se pone, vale CONFIG.capacidad.
   servicios: [
     { id:"s1", nombre:"Balayage",                                      dur:120, precio:"",
-      horas:["08:00","10:00","12:00","14:00"], exclusivo:true },
+      horas:["08:00","10:00","12:00","14:00"], max:1 },
     { id:"s2", nombre:"Gorra",                                         dur:120, precio:"",
       horas:["08:00","10:00","12:00","14:00"] },
     { id:"s3", nombre:"Color masculino",                               dur:45,  precio:"",
@@ -286,7 +287,7 @@ async function traerProximos(){
 async function pedirReserva(t){
   if(!API){
     var lista = demo[t.fecha] || [];
-    if(seSuperpone(lista, aMin(t.hora), aMin(t.hora) + t.dur)) return { ok:false, error:"ocupado" };
+    if(porQueNoEntra(lista, aMin(t.hora), aMin(t.hora) + t.dur, t.servicio)) return { ok:false, error:"ocupado" };
     t.id = "demo" + Date.now();
     lista.push(t);
     lista.sort(function(a,b){ return aMin(a.hora) - aMin(b.hora); });
@@ -315,11 +316,13 @@ function aMin(h){ var p = String(h).split(":"); return (parseInt(p[0],10)||0)*60
 function aHora(m){ return String(Math.floor(m/60)).padStart(2,"0") + ":" + String(m%60).padStart(2,"0"); }
 function fechaDesdeIso(s){ var p = s.split("-"); return new Date(+p[0], +p[1]-1, +p[2]); }
 function dur(m){ if(m < 60) return m + " min"; var h = Math.floor(m/60), r = m%60; return h + " h" + (r ? " " + r : ""); }
-function esExclusivo(nombreServicio){
+function limiteDe(nombreServicio){
   for(var i=0;i<CONFIG.servicios.length;i++){
-    if(CONFIG.servicios[i].nombre === nombreServicio) return !!CONFIG.servicios[i].exclusivo;
+    if(CONFIG.servicios[i].nombre === nombreServicio){
+      return CONFIG.servicios[i].max || CONFIG.capacidad;
+    }
   }
-  return false;
+  return CONFIG.capacidad;
 }
 
 // Turnos ya reservados que se pisan con el tramo [ini, fin)
@@ -330,16 +333,15 @@ function solapados(lista, ini, fin){
   });
 }
 
-// ¿Entra un turno nuevo en [ini, fin)?
-// Devuelve null si entra, o el motivo por el que no.
-function porQueNoEntra(lista, ini, fin, nuevoEsExclusivo){
+// ¿Entra un turno nuevo de ese servicio en [ini, fin)?
+// Devuelve null si entra, o el motivo por el que no:
+//   "mismo" -> ya hay otro turno de ese mismo servicio
+//   "lleno" -> se llegó al tope de turnos simultáneos
+function porQueNoEntra(lista, ini, fin, nombreServicio){
   var choques = solapados(lista, ini, fin);
   if(!choques.length) return null;
 
-  if(nuevoEsExclusivo) return "exclusivo";
-  for(var i=0;i<choques.length;i++){
-    if(esExclusivo(choques[i].servicio)) return "exclusivo";
-  }
+  var tope = limiteDe(nombreServicio);
 
   // La cantidad de turnos simultáneos solo cambia cuando arranca uno,
   // así que alcanza con contar en esos instantes.
@@ -348,19 +350,20 @@ function porQueNoEntra(lista, ini, fin, nuevoEsExclusivo){
     var a = aMin(r.hora);
     if(a > ini && a < fin) puntos.push(a);
   });
+
   for(var p=0;p<puntos.length;p++){
-    var momento = puntos[p], simultaneos = 0;
+    var momento = puntos[p], total = 0, mismos = 0;
     choques.forEach(function(r){
       var a = aMin(r.hora), b = a + Number(r.dur);
-      if(a <= momento && momento < b) simultaneos++;
+      if(a <= momento && momento < b){
+        total++;
+        if(r.servicio === nombreServicio) mismos++;
+      }
     });
-    if(simultaneos + 1 > CONFIG.capacidad) return "lleno";
+    if(mismos + 1 > tope) return "mismo";
+    if(total  + 1 > CONFIG.capacidad) return "lleno";
   }
   return null;
-}
-
-function seSuperpone(lista, ini, fin){
-  return porQueNoEntra(lista, ini, fin, false) !== null;
 }
 
 /* ---------- estado ---------- */
@@ -452,16 +455,15 @@ function pintarAgenda(){
     for(var t = abre; t <= limite && t + sel.servicio.dur <= cierra; t += CONFIG.paso) inicios.push(t);
   }
 
-  var exclusivo = !!sel.servicio.exclusivo;
   var slots = inicios.map(function(t){
     var fin = t + sel.servicio.dur;
     var pasado = esHoy && t <= minAhora + 30;
-    var motivo = porQueNoEntra(reservasDia, t, fin, exclusivo);
+    var motivo = porQueNoEntra(reservasDia, t, fin, sel.servicio.nombre);
     var ocupados = solapados(reservasDia, t, fin).length;
     return {
       ini: t, fin: fin, hora: aHora(t), pasado: pasado,
       libre: !motivo && !pasado,
-      ultimo: !motivo && !pasado && !exclusivo && ocupados > 0
+      ultimo: !motivo && !pasado && ocupados > 0
     };
   });
 
