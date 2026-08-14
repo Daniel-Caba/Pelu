@@ -212,6 +212,7 @@ var CONFIG = {
   salon: "Salón",
   pin: "1234",
   paso: 30,
+  ultimoInicio: "14:00"
 
   servicios: [
     { id:"s1", nombre:"Balayage",                                    dur:180, precio:"" },
@@ -221,17 +222,18 @@ var CONFIG = {
     { id:"s5", nombre:"Lavado, secado y planchado",                  dur:45,  precio:"" },
     { id:"s6", nombre:"Uñas / Capping / Semi permanente / Esculpidas", dur:120, precio:"" },
     { id:"s7", nombre:"Pestañas",                                    dur:90,  precio:"" },
-    { id:"s8", nombre:"Tatuaje — consulta",                          dur:60,  precio:"" }
+    { id:"s8", nombre:"Tatuaje",                          dur:60,  precio:"" }
   ],
 
   horario: {
     "0": null,
     "1": null,
-    "2": ["09:00","19:00"],
-    "3": ["09:00","19:00"],
-    "4": ["09:00","19:00"],
-    "5": ["09:00","19:00"],
-    "6": ["09:00","16:00"]
+    "2": ["08:00","17:00"],
+    "3": ["08:00","17:00"],
+    "4": ["08:00","17:00"],
+    "5": ["08:00","17:00"],
+    "6": ["08:00","17:00"]
+  }
   }
 };
 
@@ -387,8 +389,9 @@ function pintarAgenda(){
   var esHoy = sel.fecha === isoFecha(ahora);
   var minAhora = ahora.getHours()*60 + ahora.getMinutes();
 
+  var limite = CONFIG.ultimoInicio ? aMin(CONFIG.ultimoInicio) : cierra;
   var slots = [];
-  for(var t = abre; t + sel.servicio.dur <= cierra; t += CONFIG.paso){
+  for(var t = abre; t <= limite && t + sel.servicio.dur <= cierra; t += CONFIG.paso){
     var fin = t + sel.servicio.dur;
     var pasado = esHoy && t <= minAhora + 30;
     slots.push({ ini:t, fin:fin, hora:aHora(t), pasado:pasado, libre: !seSuperpone(reservasDia, t, fin) && !pasado });
