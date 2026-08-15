@@ -137,6 +137,23 @@
   .conf-bloque h3{font-family:var(--texto);font-size:12px;letter-spacing:.09em;text-transform:uppercase;margin:0 0 14px;color:#5B5262}
   .nota{font-size:12px;color:#5B5262;margin-top:14px;line-height:1.6}
 
+  .pago{background:var(--papel);border-radius:3px;padding:18px;margin-bottom:16px}
+  .pago .monto{font-family:var(--display);font-size:34px;line-height:1.1;color:var(--violeta);margin:0 0 4px}
+  .pago .monto-pie{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--gris);margin:0 0 18px}
+  .pago dl{display:grid;grid-template-columns:auto 1fr;gap:7px 14px;margin:0;border-top:1px solid var(--regla);padding-top:14px}
+  .pago dt{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--gris)}
+  .pago dd{margin:0;font-size:15px;font-weight:500;word-break:break-all}
+  .subir{
+    display:block;background:var(--papel);border:1px dashed var(--regla);border-radius:3px;
+    padding:22px 18px;text-align:center;cursor:pointer;transition:border-color .18s,background .18s;
+  }
+  .subir:hover{border-color:var(--violeta);background:#F7F2F8}
+  .subir input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+  .subir .titulo{font-weight:600;font-size:15px;display:block;margin-bottom:4px}
+  .subir .pie{font-family:var(--mono);font-size:11px;color:var(--gris);letter-spacing:.04em}
+  .subir.cargado{border-style:solid;border-color:var(--ok);background:#F2F8F4}
+  .subir.cargado .titulo{color:var(--ok)}
+
   @media (max-width:520px){ .serv{grid-template-columns:1fr} .serv-precio{justify-self:start} }
   @media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important} }
 </style>
@@ -180,8 +197,20 @@
         <div class="campo"><label for="nombre">Nombre y apellido</label><input id="nombre" type="text" autocomplete="name" placeholder="Ana Pérez"></div>
         <div class="campo"><label for="tel">WhatsApp</label><input id="tel" type="tel" autocomplete="tel" placeholder="11 5555 5555"></div>
       </div>
+      <div id="aviso-datos"></div>
+      <div style="margin-top:16px"><button class="btn" id="seguir">Continuar</button></div>
+    </section>
+
+    <section class="paso" id="paso-sena" hidden>
+      <div class="paso-cab"><span class="paso-n">05</span><h2>Seña</h2></div>
+      <div class="pago" id="pago"></div>
+      <label class="subir" id="caja-archivo">
+        <input type="file" id="comprobante" accept="image/*,application/pdf">
+        <span class="titulo">Adjuntar comprobante</span>
+        <span class="pie">Foto o PDF · hasta 5 MB</span>
+      </label>
       <div id="aviso-reserva"></div>
-      <div style="margin-top:16px"><button class="btn" id="confirmar">Reservar turno</button></div>
+      <div style="margin-top:16px"><button class="btn" id="confirmar">Confirmar reserva</button></div>
     </section>
 
     <section class="listo" id="listo" hidden></section>
@@ -217,21 +246,33 @@ var CONFIG = {
   // Cuántas clientas podés atender al mismo tiempo.
   capacidad: 2,
 
-  // horas: si está, el servicio SOLO se puede reservar en esos horarios.
-  // max:   cuántos turnos de ESE servicio podés tener a la vez.
-  //        Si no se pone, vale CONFIG.capacidad.
+  // ─────────────────────────────────────────────────────────────
+  // SEÑA — completá estos datos o el paso no aparece
+  // ─────────────────────────────────────────────────────────────
+  sena: 0.25,          // 25% del precio
+  pago: {
+    alias: "",         // ej: "PELUQUERIA.MP"
+    cbu: "",           // opcional
+    titular: ""        // ej: "María Gómez"
+  },
+
+  // horas:  si está, el servicio SOLO se puede reservar en esos horarios.
+  // max:    cuántos turnos de ESE servicio podés tener a la vez.
+  //         Si no se pone, vale CONFIG.capacidad.
+  // precio: EN NÚMEROS, sin puntos ni signo $. Ej: 45000
+  //         Con precio 0 no se pide seña.
   servicios: [
-    { id:"s1", nombre:"Balayage",                                      dur:120, precio:"",
+    { id:"s1", nombre:"Balayage",                                      dur:120, precio:0,
       horas:["08:00","10:00","12:00","14:00"], max:1 },
-    { id:"s2", nombre:"Gorra",                                         dur:120, precio:"",
+    { id:"s2", nombre:"Gorra",                                         dur:120, precio:0,
       horas:["08:00","10:00","12:00","14:00"] },
-    { id:"s3", nombre:"Color masculino",                               dur:45,  precio:"",
+    { id:"s3", nombre:"Color masculino",                               dur:45,  precio:0,
       horas:["08:00","10:00","12:00","14:00"] },
-    { id:"s4", nombre:"Tratamiento capilar",                           dur:60,  precio:"" },
-    { id:"s5", nombre:"Lavado, secado y planchado",                    dur:45,  precio:"" },
-    { id:"s6", nombre:"Uñas / Capping / Semi permanente / Esculpidas", dur:120, precio:"" },
-    { id:"s7", nombre:"Pestañas",                                      dur:90,  precio:"" },
-    { id:"s8", nombre:"Tatuaje",                                       dur:60,  precio:"" }
+    { id:"s4", nombre:"Tratamiento capilar",                           dur:60,  precio:0 },
+    { id:"s5", nombre:"Lavado, secado y planchado",                    dur:45,  precio:0 },
+    { id:"s6", nombre:"Uñas / Capping / Semi permanente / Esculpidas", dur:120, precio:0 },
+    { id:"s7", nombre:"Pestañas",                                      dur:90,  precio:0 },
+    { id:"s8", nombre:"Tatuaje",                                       dur:60,  precio:0 }
   ],
 
   horario: {
@@ -264,6 +305,12 @@ async function llamar(params){
   return await r.json();
 }
 
+async function enviar(payload){
+  var r = await fetch(API, { method:"POST", body: JSON.stringify(payload) });
+  if(!r.ok) throw new Error("HTTP " + r.status);
+  return await r.json();
+}
+
 async function traerTurnos(fecha){
   if(!API) return demo[fecha] || [];
   try{
@@ -272,14 +319,11 @@ async function traerTurnos(fecha){
   }catch(e){ return []; }
 }
 
-async function traerProximos(){
-  if(!API){
-    var todos = [];
-    Object.keys(demo).forEach(function(f){ todos = todos.concat(demo[f]); });
-    return todos;
-  }
+// El panel pide los datos completos (nombre, tel, comprobante) con el PIN.
+async function traerPanel(fecha){
+  if(!API) return demo[fecha] || [];
   try{
-    var j = await llamar({ accion:"proximos" });
+    var j = await llamar({ accion:"panel", fecha:fecha, pin:CONFIG.pin });
     return j.turnos || [];
   }catch(e){ return []; }
 }
@@ -294,9 +338,10 @@ async function pedirReserva(t){
     demo[t.fecha] = lista;
     return { ok:true, turno:t };
   }
-  return await llamar({
+  return await enviar({
     accion:"reservar", fecha:t.fecha, hora:t.hora, dur:t.dur,
-    servicio:t.servicio, precio:t.precio, nombre:t.nombre, tel:t.tel
+    servicio:t.servicio, precio:t.precio, sena:t.sena,
+    nombre:t.nombre, tel:t.tel, comprobante:t.comprobante || null
   });
 }
 
@@ -316,6 +361,12 @@ function aMin(h){ var p = String(h).split(":"); return (parseInt(p[0],10)||0)*60
 function aHora(m){ return String(Math.floor(m/60)).padStart(2,"0") + ":" + String(m%60).padStart(2,"0"); }
 function fechaDesdeIso(s){ var p = s.split("-"); return new Date(+p[0], +p[1]-1, +p[2]); }
 function dur(m){ if(m < 60) return m + " min"; var h = Math.floor(m/60), r = m%60; return h + " h" + (r ? " " + r : ""); }
+function plata(n){ return "$" + Number(n).toLocaleString("es-AR"); }
+function montoSena(servicio){ return Math.round(Number(servicio.precio || 0) * CONFIG.sena); }
+// Se pide seña solo si el servicio tiene precio y cargaste un alias o CBU
+function pideSena(servicio){
+  return Number(servicio.precio || 0) > 0 && !!(CONFIG.pago.alias || CONFIG.pago.cbu);
+}
 function limiteDe(nombreServicio){
   for(var i=0;i<CONFIG.servicios.length;i++){
     if(CONFIG.servicios[i].nombre === nombreServicio){
@@ -384,14 +435,14 @@ function pintarServicios(){
     b.innerHTML = '<span><span class="serv-nom"></span><br><span class="serv-meta"></span></span><span class="serv-precio"></span>';
     b.querySelector(".serv-nom").textContent = s.nombre;
     b.querySelector(".serv-meta").textContent = dur(s.dur);
-    b.querySelector(".serv-precio").textContent = s.precio || "";
+    b.querySelector(".serv-precio").textContent = Number(s.precio) > 0 ? plata(s.precio) : "";
     b.addEventListener("click", function(){
       sel.servicio = s; sel.hora = null;
       pintarServicios();
       $("paso-dia").hidden = false;
       pintarDias();
       if(sel.fecha) cargarDia();
-      else { $("paso-hora").hidden = true; $("paso-datos").hidden = true; }
+      else { $("paso-hora").hidden = true; $("paso-datos").hidden = true; $("paso-sena").hidden = true; }
       $("paso-dia").scrollIntoView({ behavior:"smooth", block:"start" });
     });
     c.appendChild(b);
@@ -502,34 +553,107 @@ function mostrarFormulario(){
   $("resumen").querySelector("strong").textContent = sel.servicio.nombre;
   $("resumen").querySelector("span").textContent =
     SEML[d.getDay()] + " " + d.getDate() + " de " + MES[d.getMonth()] + " · " + sel.hora +
-    " · " + dur(sel.servicio.dur) + (sel.servicio.precio ? " · " + sel.servicio.precio : "");
-  $("aviso-reserva").innerHTML = "";
+    " · " + dur(sel.servicio.dur) +
+    (Number(sel.servicio.precio) > 0 ? " · " + plata(sel.servicio.precio) : "");
+  $("aviso-datos").innerHTML = "";
   $("paso-datos").scrollIntoView({ behavior:"smooth", block:"start" });
 }
-function aviso(txt){
-  $("aviso-reserva").innerHTML = '<div class="aviso mal"></div>';
-  $("aviso-reserva").firstChild.textContent = txt;
+function aviso(txt, donde){
+  var caja = $(donde || "aviso-reserva");
+  caja.innerHTML = '<div class="aviso mal"></div>';
+  caja.firstChild.textContent = txt;
+}
+
+/* ---------- seña ---------- */
+var archivo = null;   // { nombre, tipo, datos(base64) }
+
+function mostrarSena(){
+  var s = sel.servicio;
+  $("paso-sena").hidden = false;
+  var p = CONFIG.pago;
+  var filas = "";
+  if(p.alias)   filas += "<dt>Alias</dt><dd>" + p.alias + "</dd>";
+  if(p.cbu)     filas += "<dt>CBU</dt><dd>" + p.cbu + "</dd>";
+  if(p.titular) filas += "<dt>Titular</dt><dd>" + p.titular + "</dd>";
+  $("pago").innerHTML =
+    '<p class="monto">' + plata(montoSena(s)) + '</p>' +
+    '<p class="monto-pie">Seña · ' + Math.round(CONFIG.sena*100) + '% de ' + plata(s.precio) + '</p>' +
+    '<dl>' + filas + '</dl>';
+  $("aviso-reserva").innerHTML = "";
+  $("paso-sena").scrollIntoView({ behavior:"smooth", block:"start" });
+}
+
+function leerArchivo(f){
+  return new Promise(function(res, rej){
+    var lector = new FileReader();
+    lector.onload = function(){
+      res({ nombre:f.name, tipo:f.type, datos:String(lector.result).split(",")[1] });
+    };
+    lector.onerror = function(){ rej(new Error("no se pudo leer")); };
+    lector.readAsDataURL(f);
+  });
+}
+
+async function alElegirArchivo(){
+  var f = $("comprobante").files[0];
+  var caja = $("caja-archivo");
+  archivo = null;
+  if(!f) return;
+  if(f.size > 5 * 1024 * 1024){
+    aviso("El archivo pesa más de 5 MB. Sacale una foto más chica o mandá el PDF.");
+    caja.classList.remove("cargado");
+    return;
+  }
+  caja.querySelector(".titulo").textContent = "Cambiar comprobante";
+  caja.querySelector(".pie").textContent = "Leyendo…";
+  try{
+    archivo = await leerArchivo(f);
+    caja.classList.add("cargado");
+    caja.querySelector(".titulo").textContent = "Comprobante listo";
+    caja.querySelector(".pie").textContent = f.name;
+    $("aviso-reserva").innerHTML = "";
+  }catch(e){
+    caja.classList.remove("cargado");
+    caja.querySelector(".titulo").textContent = "Adjuntar comprobante";
+    caja.querySelector(".pie").textContent = "No se pudo leer el archivo. Probá con otro.";
+  }
+}
+
+function seguir(){
+  var nombre = $("nombre").value.trim(), tel = $("tel").value.trim();
+  if(nombre.length < 3){ aviso("Escribí tu nombre y apellido para poder identificar el turno.", "aviso-datos"); return; }
+  if(tel.replace(/\D/g,"").length < 8){ aviso("Falta un WhatsApp válido para confirmarte el turno.", "aviso-datos"); return; }
+  $("aviso-datos").innerHTML = "";
+  if(pideSena(sel.servicio)) mostrarSena();
+  else confirmar();
 }
 
 async function confirmar(){
   var nombre = $("nombre").value.trim(), tel = $("tel").value.trim();
-  if(nombre.length < 3){ aviso("Escribí tu nombre y apellido para poder identificar el turno."); return; }
-  if(tel.replace(/\D/g,"").length < 8){ aviso("Falta un WhatsApp válido para confirmarte el turno."); return; }
+  var necesita = pideSena(sel.servicio);
+
+  if(necesita && !archivo){
+    aviso("Falta adjuntar el comprobante de la transferencia.");
+    return;
+  }
 
   var btn = $("confirmar");
   btn.disabled = true; btn.textContent = "Reservando…";
 
   var t = {
     fecha: sel.fecha, hora: sel.hora, dur: sel.servicio.dur,
-    servicio: sel.servicio.nombre, precio: sel.servicio.precio || "",
-    nombre: nombre, tel: tel
+    servicio: sel.servicio.nombre,
+    precio: Number(sel.servicio.precio) || 0,
+    sena: necesita ? montoSena(sel.servicio) : 0,
+    nombre: nombre, tel: tel,
+    comprobante: archivo
   };
 
   var res;
   try{ res = await pedirReserva(t); }
   catch(e){ res = { ok:false, error:"red" }; }
 
-  btn.disabled = false; btn.textContent = "Reservar turno";
+  btn.disabled = false; btn.textContent = "Confirmar reserva";
 
   if(res && res.ok){
     recien = t.hora;
@@ -540,7 +664,9 @@ async function confirmar(){
     reservasDia = await traerTurnos(sel.fecha);
     sel.hora = null;
     $("paso-datos").hidden = true;
+    $("paso-sena").hidden = true;
     pintarAgenda();
+    aviso("Ese horario se acaba de ocupar. Elegí otro, por favor.", "aviso-datos");
     $("paso-hora").scrollIntoView({ behavior:"smooth", block:"start" });
     return;
   }
@@ -576,10 +702,16 @@ function mostrarListo(t){
   box.querySelector(".enlace-cal").href = enlaceGoogle(t);
   box.querySelector("#otro").addEventListener("click", function(){
     sel = { servicio:null, fecha:null, hora:null };
-    $("nombre").value = ""; $("tel").value = "";
+    archivo = null;
+    $("nombre").value = ""; $("tel").value = ""; $("comprobante").value = "";
+    var caja = $("caja-archivo");
+    caja.classList.remove("cargado");
+    caja.querySelector(".titulo").textContent = "Adjuntar comprobante";
+    caja.querySelector(".pie").textContent = "Foto o PDF · hasta 5 MB";
     box.hidden = true;
     document.querySelectorAll(".hero,.paso").forEach(function(el){ el.hidden = false; });
-    $("paso-dia").hidden = true; $("paso-hora").hidden = true; $("paso-datos").hidden = true;
+    $("paso-dia").hidden = true; $("paso-hora").hidden = true;
+    $("paso-datos").hidden = true; $("paso-sena").hidden = true;
     pintarServicios();
     window.scrollTo({ top:0, behavior:"smooth" });
   });
@@ -612,12 +744,19 @@ function tarjeta(t, conFecha){
     '<button class="mini borrar">Cancelar turno</button></div>';
   el.querySelector(".t-hora").textContent = t.hora;
   el.querySelector(".t-nom").textContent = t.nombre;
-  el.querySelector(".t-meta").textContent = t.servicio + " · " + dur(Number(t.dur)) + (t.precio ? " · " + t.precio : "");
+  el.querySelector(".t-meta").textContent = t.servicio + " · " + dur(Number(t.dur)) +
+    (Number(t.sena) > 0 ? " · seña " + plata(t.sena) : "");
   el.querySelector(".t-fec").textContent = conFecha
     ? SEML[d.getDay()] + " " + d.getDate() + " de " + MES[d.getMonth()] + " · " + t.tel : t.tel;
   var links = el.querySelectorAll(".mini");
   links[0].href = "https://wa.me/" + String(t.tel).replace(/\D/g,"");
   links[1].href = enlaceGoogle(t);
+  if(t.comprobante){
+    var a = document.createElement("a");
+    a.className = "mini"; a.target = "_blank"; a.rel = "noopener";
+    a.href = t.comprobante; a.textContent = "Ver comprobante";
+    el.querySelector(".t-acc").insertBefore(a, el.querySelector(".borrar"));
+  }
   el.querySelector(".borrar").addEventListener("click", async function(){
     await pedirCancelar(t.id, t.fecha);
     pintarPanel();
@@ -629,7 +768,7 @@ async function pintarPanel(){
   var c = $("panel-cuerpo");
   c.innerHTML = '<div class="dias" id="dias-panel"></div><div id="lista-panel" style="margin-top:16px"></div>';
   tiraDias($("dias-panel"), panelFecha, function(iso){ panelFecha = iso; pintarPanel(); });
-  var lista = await traerTurnos(panelFecha);
+  var lista = await traerPanel(panelFecha);
   var box = $("lista-panel");
   box.innerHTML = "";
   if(!lista.length){ box.innerHTML = '<div class="vacio">Sin turnos este día.</div>'; return; }
@@ -648,7 +787,9 @@ $("salir-panel").addEventListener("click", function(){
   if(sel.fecha && sel.servicio) cargarDia();
   window.scrollTo({ top:0 });
 });
+$("seguir").addEventListener("click", seguir);
 $("confirmar").addEventListener("click", confirmar);
+$("comprobante").addEventListener("change", alElegirArchivo);
 
 document.title = "Turnos — " + CONFIG.salon;
 $("marca").textContent = CONFIG.salon;
