@@ -1,5 +1,4 @@
-
-  <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es-AR">
 <head>
 <meta charset="utf-8">
@@ -150,6 +149,10 @@
   }
   .subir:hover{border-color:var(--violeta);background:#F7F2F8}
   .subir[hidden]{display:none}
+  .pago[hidden]{display:none}
+  .campo[hidden]{display:none}
+  .ayuda{font-family:var(--mono);font-size:11px;color:var(--gris);letter-spacing:.04em}
+  .pago .aclara{font-size:12px;color:#5B5262;margin:14px 0 0;line-height:1.5}
   .subir input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
   .subir .titulo{font-weight:600;font-size:15px;display:block;margin-bottom:4px}
   .subir .pie{font-family:var(--mono);font-size:11px;color:var(--gris);letter-spacing:.04em}
@@ -216,6 +219,11 @@
         <span class="titulo">Foto de tu pelo</span>
         <span class="pie">Actual, con luz</span>
       </label>
+      <div class="campo" id="campo-extra" hidden style="margin-top:14px">
+        <label for="extra" id="etiqueta-extra">Dato adicional</label>
+        <input id="extra" type="text">
+        <span class="ayuda" id="ayuda-extra"></span>
+      </div>
       <div id="aviso-reserva"></div>
       <div style="margin-top:16px"><button class="btn" id="confirmar">Confirmar reserva</button></div>
     </section>
@@ -258,31 +266,50 @@ var CONFIG = {
   // ─────────────────────────────────────────────────────────────
   sena: 0.25,          // 25% del precio
   pago: {
-    alias: "marielpardo.mp",         // ej: "PELUQUERIA.MP"
-    cbu: "000",           // opcional
-    titular: "Mariel Pardo"        // ej: "María Gómez"
+    alias: "",         // ej: "PELUQUERIA.MP"
+    cbu: "",           // opcional
+    titular: ""        // ej: "María Gómez"
   },
 
-  // foto:   si está, además del comprobante se le pide una foto a la clienta.
+  // foto:   si está, se le pide una foto a la clienta.
+  // campo:  si está, se le pide un dato escrito (ej: zona del cuerpo).
   // horas:  si está, el servicio SOLO se puede reservar en esos horarios.
-  // max:    cuántos turnos de ESE servicio podés tener a la vez.
-  //         Si no se pone, vale CONFIG.capacidad.
-  // precio: EN NÚMEROS, sin puntos ni signo $. Ej: 45000
-  //         Con precio 0 no se pide seña.
+  // grupo:  servicios que comparten cupo entre sí (ej: los dos balayages).
+  // max:    cuántos turnos de ese grupo podés tener a la vez.
+  // desde:  true = el precio es un mínimo. La seña se calcula sobre él.
+  // precio: EN NÚMEROS, sin puntos ni signo $. Con precio 0 no se pide seña.
   servicios: [
-    { id:"s1", nombre:"Balayage",                                      dur:120, precio:100,
-      horas:["08:00","10:00","12:00","14:00"], max:1,
+    { id:"s1",  nombre:"Balayage",                        dur:120, precio:130000, desde:true,
+      horas:["08:00","10:00","12:00","14:00"], grupo:"Color", max:1,
       foto:{ titulo:"Foto de tu pelo",
              ayuda:"Actual, con luz natural, el pelo suelto y sin filtros" } },
-    { id:"s2", nombre:"Gorra",                                         dur:120, precio:200,
+
+    { id:"s2",  nombre:"Retoque o contornos",  dur:120, precio:90000,
+      horas:["08:00","10:00","12:00","14:00"], grupo:"Color", max:1,
+      foto:{ titulo:"Foto de tu pelo",
+             ayuda:"Actual, con luz natural, el pelo suelto y sin filtros" } },
+
+    { id:"s3",  nombre:"Gorra",                           dur:120, precio:110000, desde:true,
       horas:["08:00","10:00","12:00","14:00"] },
-    { id:"s3", nombre:"Color masculino",                               dur:45,  precio:300,
+
+    { id:"s4",  nombre:"Color masculino",                 dur:45,  precio:40000,  desde:true,
       horas:["08:00","10:00","12:00","14:00"] },
-    { id:"s4", nombre:"Tratamiento capilar",                           dur:60,  precio:400 },
-    { id:"s5", nombre:"Lavado, secado y planchado",                    dur:45,  precio:500 },
-    { id:"s6", nombre:"Uñas / Capping / Semi permanente / Esculpidas", dur:120, precio:600 },
-    { id:"s7", nombre:"Pestañas",                                      dur:90,  precio:700 },
-    { id:"s8", nombre:"Tatuaje",                                       dur:60,  precio:800 }
+
+    { id:"s5",  nombre:"Tratamiento capilar",             dur:60,  precio:20000 },
+    { id:"s6",  nombre:"Lavado, secado y planchado",      dur:45,  precio:20000 },
+
+    { id:"s7",  nombre:"Uñas - Capping",                  dur:120, precio:22000 },
+    { id:"s8",  nombre:"Uñas - Semipermanente",           dur:60,  precio:18000 },
+    { id:"s9",  nombre:"Uñas - Esculpidas",               dur:120, precio:22000 },
+
+    { id:"s10", nombre:"Pestañas",                        dur:90,  precio:18000, desde:true },
+
+    // Sin precio: no se pide seña. Sí foto de referencia y zona del cuerpo.
+    { id:"s11", nombre:"Tatuaje",                         dur:60,  precio:0,
+      foto:{ titulo:"Foto de referencia",
+             ayuda:"El diseño que te querés hacer" },
+      campo:{ etiqueta:"Zona del cuerpo",
+              ayuda:"Ej: antebrazo izquierdo, tobillo derecho" } }
   ],
 
   horario: {
@@ -352,7 +379,8 @@ async function pedirReserva(t){
     accion:"reservar", fecha:t.fecha, hora:t.hora, dur:t.dur,
     servicio:t.servicio, precio:t.precio, sena:t.sena,
     nombre:t.nombre, tel:t.tel,
-    comprobante:t.comprobante || null, foto:t.foto || null
+    comprobante:t.comprobante || null, foto:t.foto || null,
+    extra:t.extra || ""
   });
 }
 
@@ -378,14 +406,27 @@ function montoSena(servicio){ return Math.round(Number(servicio.precio || 0) * C
 function pideSena(servicio){
   return Number(servicio.precio || 0) > 0 && !!(CONFIG.pago.alias || CONFIG.pago.cbu);
 }
-function limiteDe(nombreServicio){
+function servicioPorNombre(nombre){
   for(var i=0;i<CONFIG.servicios.length;i++){
-    if(CONFIG.servicios[i].nombre === nombreServicio){
-      return CONFIG.servicios[i].max || CONFIG.capacidad;
-    }
+    if(CONFIG.servicios[i].nombre === nombre) return CONFIG.servicios[i];
   }
-  return CONFIG.capacidad;
+  return null;
 }
+// Los servicios de un mismo grupo comparten cupo. Sin grupo, cada uno es su grupo.
+function grupoDe(nombre){
+  var s = servicioPorNombre(nombre);
+  return (s && s.grupo) || nombre;
+}
+function limiteDe(nombre){
+  var s = servicioPorNombre(nombre);
+  return (s && s.max) || CONFIG.capacidad;
+}
+// "desde $130.000" o "$20.000"
+function precioTexto(s){
+  if(!(Number(s.precio) > 0)) return "";
+  return (s.desde ? "desde " : "") + plata(s.precio);
+}
+function pideCampo(s){ return !!(s && s.campo); }
 
 // Turnos ya reservados que se pisan con el tramo [ini, fin)
 function solapados(lista, ini, fin){
@@ -419,7 +460,7 @@ function porQueNoEntra(lista, ini, fin, nombreServicio){
       var a = aMin(r.hora), b = a + Number(r.dur);
       if(a <= momento && momento < b){
         total++;
-        if(r.servicio === nombreServicio) mismos++;
+        if(grupoDe(r.servicio) === grupoDe(nombreServicio)) mismos++;
       }
     });
     if(mismos + 1 > tope) return "mismo";
@@ -446,7 +487,7 @@ function pintarServicios(){
     b.innerHTML = '<span><span class="serv-nom"></span><br><span class="serv-meta"></span></span><span class="serv-precio"></span>';
     b.querySelector(".serv-nom").textContent = s.nombre;
     b.querySelector(".serv-meta").textContent = dur(s.dur);
-    b.querySelector(".serv-precio").textContent = Number(s.precio) > 0 ? plata(s.precio) : "";
+    b.querySelector(".serv-precio").textContent = precioTexto(s) || "a consultar";
     b.addEventListener("click", function(){
       sel.servicio = s; sel.hora = null;
       pintarServicios();
@@ -565,7 +606,7 @@ function mostrarFormulario(){
   $("resumen").querySelector("span").textContent =
     SEML[d.getDay()] + " " + d.getDate() + " de " + MES[d.getMonth()] + " · " + sel.hora +
     " · " + dur(sel.servicio.dur) +
-    (Number(sel.servicio.precio) > 0 ? " · " + plata(sel.servicio.precio) : "");
+    (precioTexto(sel.servicio) ? " · " + precioTexto(sel.servicio) : "");
   $("aviso-datos").innerHTML = "";
   $("paso-datos").scrollIntoView({ behavior:"smooth", block:"start" });
 }
@@ -599,23 +640,47 @@ function mostrarSena(){
   var s = sel.servicio, p = CONFIG.pago;
   $("paso-sena").hidden = false;
 
-  var conFoto = pideFoto(s);
-  $("titulo-sena").textContent = conFoto ? "Seña y foto" : "Seña";
+  var conSena  = pideSena(s);
+  var conFoto  = pideFoto(s);
+  var conCampo = pideCampo(s);
 
-  var filas = "";
-  if(p.alias)   filas += "<dt>Alias</dt><dd>" + p.alias + "</dd>";
-  if(p.cbu)     filas += "<dt>CBU</dt><dd>" + p.cbu + "</dd>";
-  if(p.titular) filas += "<dt>Titular</dt><dd>" + p.titular + "</dd>";
-  $("pago").innerHTML =
-    '<p class="monto">' + plata(montoSena(s)) + '</p>' +
-    '<p class="monto-pie">Seña · ' + Math.round(CONFIG.sena*100) + '% de ' + plata(s.precio) + '</p>' +
-    '<dl>' + filas + '</dl>';
+  var partes = [];
+  if(conSena)  partes.push("Seña");
+  if(conFoto)  partes.push("Foto");
+  if(conCampo && !conFoto) partes.push("Datos");
+  $("titulo-sena").textContent = partes.join(" y ") || "Para terminar";
 
+  // Bloque de la seña
+  $("pago").hidden = !conSena;
+  if(conSena){
+    var filas = "";
+    if(p.alias)   filas += "<dt>Alias</dt><dd>" + p.alias + "</dd>";
+    if(p.cbu)     filas += "<dt>CBU</dt><dd>" + p.cbu + "</dd>";
+    if(p.titular) filas += "<dt>Titular</dt><dd>" + p.titular + "</dd>";
+    $("pago").innerHTML =
+      '<p class="monto">' + plata(montoSena(s)) + '</p>' +
+      '<p class="monto-pie">Seña · ' + Math.round(CONFIG.sena*100) + '% de ' + plata(s.precio) +
+        (s.desde ? " (valor base)" : "") + '</p>' +
+      '<dl>' + filas + '</dl>' +
+      (s.desde
+        ? '<p class="aclara">El precio final puede ser mayor según tu pelo. La seña se calcula sobre el valor base y se descuenta del total.</p>'
+        : '');
+  }
+  $("caja-comprobante").hidden = !conSena;
+
+  // Foto
   $("caja-foto").hidden = !conFoto;
   if(conFoto){
-    CAJAS.foto.titulo = s.foto.titulo || "Foto de tu pelo";
-    CAJAS.foto.pie    = s.foto.ayuda  || "Actual, con luz";
+    CAJAS.foto.titulo = s.foto.titulo || "Foto";
+    CAJAS.foto.pie    = s.foto.ayuda  || "";
     if(!adjuntos.foto) resetCaja("foto");
+  }
+
+  // Dato escrito (ej: zona del cuerpo)
+  $("campo-extra").hidden = !conCampo;
+  if(conCampo){
+    $("etiqueta-extra").textContent = s.campo.etiqueta || "Dato adicional";
+    $("ayuda-extra").textContent = s.campo.ayuda || "";
   }
 
   $("aviso-reserva").innerHTML = "";
@@ -665,7 +730,7 @@ function seguir(){
   if(nombre.length < 3){ aviso("Escribí tu nombre y apellido para poder identificar el turno.", "aviso-datos"); return; }
   if(tel.replace(/\D/g,"").length < 8){ aviso("Falta un WhatsApp válido para confirmarte el turno.", "aviso-datos"); return; }
   $("aviso-datos").innerHTML = "";
-  if(pideSena(sel.servicio) || pideFoto(sel.servicio)) mostrarSena();
+  if(pideSena(sel.servicio) || pideFoto(sel.servicio) || pideCampo(sel.servicio)) mostrarSena();
   else confirmar();
 }
 
@@ -678,8 +743,17 @@ async function confirmar(){
     return;
   }
   if(pideFoto(sel.servicio) && !adjuntos.foto){
-    aviso("Falta la foto de tu pelo. La necesito para preparar el color.");
+    aviso("Falta adjuntar " + (sel.servicio.foto.titulo || "la foto").toLowerCase() + ".");
     return;
+  }
+  var extra = "";
+  if(pideCampo(sel.servicio)){
+    var val = $("extra").value.trim();
+    if(val.length < 3){
+      aviso("Falta completar: " + sel.servicio.campo.etiqueta + ".");
+      return;
+    }
+    extra = sel.servicio.campo.etiqueta + ": " + val;
   }
 
   var btn = $("confirmar");
@@ -692,7 +766,8 @@ async function confirmar(){
     sena: necesita ? montoSena(sel.servicio) : 0,
     nombre: nombre, tel: tel,
     comprobante: adjuntos.comprobante,
-    foto: adjuntos.foto
+    foto: adjuntos.foto,
+    extra: extra
   };
 
   var res;
@@ -750,6 +825,7 @@ function mostrarListo(t){
     sel = { servicio:null, fecha:null, hora:null };
     $("nombre").value = ""; $("tel").value = "";
     resetCaja("comprobante"); resetCaja("foto");
+    $("extra").value = "";
     box.hidden = true;
     document.querySelectorAll(".hero,.paso").forEach(function(el){ el.hidden = false; });
     $("paso-dia").hidden = true; $("paso-hora").hidden = true;
@@ -788,6 +864,11 @@ function tarjeta(t, conFecha){
   el.querySelector(".t-nom").textContent = t.nombre;
   el.querySelector(".t-meta").textContent = t.servicio + " · " + dur(Number(t.dur)) +
     (Number(t.sena) > 0 ? " · seña " + plata(t.sena) : "");
+  if(t.extra){
+    var ex = document.createElement("div");
+    ex.className = "t-meta"; ex.textContent = t.extra;
+    el.querySelector(".t-meta").parentNode.appendChild(ex);
+  }
   el.querySelector(".t-fec").textContent = conFecha
     ? SEML[d.getDay()] + " " + d.getDate() + " de " + MES[d.getMonth()] + " · " + t.tel : t.tel;
   var links = el.querySelectorAll(".mini");
