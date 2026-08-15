@@ -1,4 +1,5 @@
-<!DOCTYPE html>
+
+  <!DOCTYPE html>
 <html lang="es-AR">
 <head>
 <meta charset="utf-8">
@@ -202,12 +203,17 @@
     </section>
 
     <section class="paso" id="paso-sena" hidden>
-      <div class="paso-cab"><span class="paso-n">05</span><h2>Seña</h2></div>
+      <div class="paso-cab"><span class="paso-n">05</span><h2 id="titulo-sena">Seña</h2></div>
       <div class="pago" id="pago"></div>
-      <label class="subir" id="caja-archivo">
+      <label class="subir" id="caja-comprobante">
         <input type="file" id="comprobante" accept="image/*,application/pdf">
         <span class="titulo">Adjuntar comprobante</span>
         <span class="pie">Foto o PDF · hasta 5 MB</span>
+      </label>
+      <label class="subir" id="caja-foto" style="margin-top:10px" hidden>
+        <input type="file" id="foto" accept="image/*">
+        <span class="titulo">Foto de tu pelo</span>
+        <span class="pie">Actual, con luz</span>
       </label>
       <div id="aviso-reserva"></div>
       <div style="margin-top:16px"><button class="btn" id="confirmar">Confirmar reserva</button></div>
@@ -251,28 +257,31 @@ var CONFIG = {
   // ─────────────────────────────────────────────────────────────
   sena: 0.25,          // 25% del precio
   pago: {
-    alias: "peluqueria.mp",         // ej: "PELUQUERIA.MP"
-    cbu: "00000",           // opcional
+    alias: "marielpardo.mp",         // ej: "PELUQUERIA.MP"
+    cbu: "000",           // opcional
     titular: "Mariel Pardo"        // ej: "María Gómez"
   },
 
+  // foto:   si está, además del comprobante se le pide una foto a la clienta.
   // horas:  si está, el servicio SOLO se puede reservar en esos horarios.
   // max:    cuántos turnos de ESE servicio podés tener a la vez.
   //         Si no se pone, vale CONFIG.capacidad.
   // precio: EN NÚMEROS, sin puntos ni signo $. Ej: 45000
   //         Con precio 0 no se pide seña.
   servicios: [
-    { id:"s1", nombre:"Balayage",                                      dur:120, precio:100000,
-      horas:["08:00","10:00","12:00","14:00"], max:1 },
-    { id:"s2", nombre:"Gorra",                                         dur:120, precio:80000,
+    { id:"s1", nombre:"Balayage",                                      dur:120, precio:100,
+      horas:["08:00","10:00","12:00","14:00"], max:1,
+      foto:{ titulo:"Foto de tu pelo",
+             ayuda:"Actual, con luz natural, el pelo suelto y sin filtros" } },
+    { id:"s2", nombre:"Gorra",                                         dur:120, precio:200,
       horas:["08:00","10:00","12:00","14:00"] },
-    { id:"s3", nombre:"Color masculino",                               dur:45,  precio:50000,
+    { id:"s3", nombre:"Color masculino",                               dur:45,  precio:300,
       horas:["08:00","10:00","12:00","14:00"] },
-    { id:"s4", nombre:"Tratamiento capilar",                           dur:60,  precio:30000 },
-    { id:"s5", nombre:"Lavado, secado y planchado",                    dur:45,  precio:40000 },
-    { id:"s6", nombre:"Uñas / Capping / Semi permanente / Esculpidas", dur:120, precio:20000 },
-    { id:"s7", nombre:"Pestañas",                                      dur:90,  precio:15000 },
-    { id:"s8", nombre:"Tatuaje",                                       dur:60,  precio:10000 }
+    { id:"s4", nombre:"Tratamiento capilar",                           dur:60,  precio:400 },
+    { id:"s5", nombre:"Lavado, secado y planchado",                    dur:45,  precio:500 },
+    { id:"s6", nombre:"Uñas / Capping / Semi permanente / Esculpidas", dur:120, precio:600 },
+    { id:"s7", nombre:"Pestañas",                                      dur:90,  precio:700 },
+    { id:"s8", nombre:"Tatuaje",                                       dur:60,  precio:800 }
   ],
 
   horario: {
@@ -341,7 +350,8 @@ async function pedirReserva(t){
   return await enviar({
     accion:"reservar", fecha:t.fecha, hora:t.hora, dur:t.dur,
     servicio:t.servicio, precio:t.precio, sena:t.sena,
-    nombre:t.nombre, tel:t.tel, comprobante:t.comprobante || null
+    nombre:t.nombre, tel:t.tel,
+    comprobante:t.comprobante || null, foto:t.foto || null
   });
 }
 
@@ -564,13 +574,33 @@ function aviso(txt, donde){
   caja.firstChild.textContent = txt;
 }
 
-/* ---------- seña ---------- */
-var archivo = null;   // { nombre, tipo, datos(base64) }
+/* ---------- seña y adjuntos ---------- */
+var adjuntos = { comprobante:null, foto:null };
+
+// Textos de cada caja cuando está vacía
+var CAJAS = {
+  comprobante: { id:"caja-comprobante", titulo:"Adjuntar comprobante", pie:"Foto o PDF · hasta 5 MB" },
+  foto:        { id:"caja-foto",        titulo:"Foto de tu pelo",      pie:"Actual, con luz" }
+};
+
+function pideFoto(servicio){ return !!(servicio && servicio.foto); }
+
+function resetCaja(clave){
+  var d = CAJAS[clave], caja = $(d.id);
+  adjuntos[clave] = null;
+  $(clave).value = "";
+  caja.classList.remove("cargado");
+  caja.querySelector(".titulo").textContent = d.titulo;
+  caja.querySelector(".pie").textContent = d.pie;
+}
 
 function mostrarSena(){
-  var s = sel.servicio;
+  var s = sel.servicio, p = CONFIG.pago;
   $("paso-sena").hidden = false;
-  var p = CONFIG.pago;
+
+  var conFoto = pideFoto(s);
+  $("titulo-sena").textContent = conFoto ? "Seña y foto" : "Seña";
+
   var filas = "";
   if(p.alias)   filas += "<dt>Alias</dt><dd>" + p.alias + "</dd>";
   if(p.cbu)     filas += "<dt>CBU</dt><dd>" + p.cbu + "</dd>";
@@ -579,6 +609,14 @@ function mostrarSena(){
     '<p class="monto">' + plata(montoSena(s)) + '</p>' +
     '<p class="monto-pie">Seña · ' + Math.round(CONFIG.sena*100) + '% de ' + plata(s.precio) + '</p>' +
     '<dl>' + filas + '</dl>';
+
+  $("caja-foto").hidden = !conFoto;
+  if(conFoto){
+    CAJAS.foto.titulo = s.foto.titulo || "Foto de tu pelo";
+    CAJAS.foto.pie    = s.foto.ayuda  || "Actual, con luz";
+    if(!adjuntos.foto) resetCaja("foto");
+  }
+
   $("aviso-reserva").innerHTML = "";
   $("paso-sena").scrollIntoView({ behavior:"smooth", block:"start" });
 }
@@ -594,29 +632,31 @@ function leerArchivo(f){
   });
 }
 
-async function alElegirArchivo(){
-  var f = $("comprobante").files[0];
-  var caja = $("caja-archivo");
-  archivo = null;
-  if(!f) return;
-  if(f.size > 5 * 1024 * 1024){
-    aviso("El archivo pesa más de 5 MB. Sacale una foto más chica o mandá el PDF.");
-    caja.classList.remove("cargado");
-    return;
-  }
-  caja.querySelector(".titulo").textContent = "Cambiar comprobante";
-  caja.querySelector(".pie").textContent = "Leyendo…";
-  try{
-    archivo = await leerArchivo(f);
-    caja.classList.add("cargado");
-    caja.querySelector(".titulo").textContent = "Comprobante listo";
-    caja.querySelector(".pie").textContent = f.name;
-    $("aviso-reserva").innerHTML = "";
-  }catch(e){
-    caja.classList.remove("cargado");
-    caja.querySelector(".titulo").textContent = "Adjuntar comprobante";
-    caja.querySelector(".pie").textContent = "No se pudo leer el archivo. Probá con otro.";
-  }
+// Un solo manejador para las dos cajas
+function alElegirArchivo(clave){
+  return async function(){
+    var f = $(clave).files[0];
+    var caja = $(CAJAS[clave].id);
+    adjuntos[clave] = null;
+    if(!f) return;
+
+    if(f.size > 5 * 1024 * 1024){
+      resetCaja(clave);
+      aviso("El archivo pesa más de 5 MB. Sacale una foto más chica o mandá el PDF.");
+      return;
+    }
+    caja.querySelector(".pie").textContent = "Leyendo…";
+    try{
+      adjuntos[clave] = await leerArchivo(f);
+      caja.classList.add("cargado");
+      caja.querySelector(".titulo").textContent = clave === "foto" ? "Foto lista" : "Comprobante listo";
+      caja.querySelector(".pie").textContent = f.name;
+      $("aviso-reserva").innerHTML = "";
+    }catch(e){
+      resetCaja(clave);
+      caja.querySelector(".pie").textContent = "No se pudo leer el archivo. Probá con otro.";
+    }
+  };
 }
 
 function seguir(){
@@ -624,7 +664,7 @@ function seguir(){
   if(nombre.length < 3){ aviso("Escribí tu nombre y apellido para poder identificar el turno.", "aviso-datos"); return; }
   if(tel.replace(/\D/g,"").length < 8){ aviso("Falta un WhatsApp válido para confirmarte el turno.", "aviso-datos"); return; }
   $("aviso-datos").innerHTML = "";
-  if(pideSena(sel.servicio)) mostrarSena();
+  if(pideSena(sel.servicio) || pideFoto(sel.servicio)) mostrarSena();
   else confirmar();
 }
 
@@ -632,8 +672,12 @@ async function confirmar(){
   var nombre = $("nombre").value.trim(), tel = $("tel").value.trim();
   var necesita = pideSena(sel.servicio);
 
-  if(necesita && !archivo){
+  if(necesita && !adjuntos.comprobante){
     aviso("Falta adjuntar el comprobante de la transferencia.");
+    return;
+  }
+  if(pideFoto(sel.servicio) && !adjuntos.foto){
+    aviso("Falta la foto de tu pelo. La necesito para preparar el color.");
     return;
   }
 
@@ -646,7 +690,8 @@ async function confirmar(){
     precio: Number(sel.servicio.precio) || 0,
     sena: necesita ? montoSena(sel.servicio) : 0,
     nombre: nombre, tel: tel,
-    comprobante: archivo
+    comprobante: adjuntos.comprobante,
+    foto: adjuntos.foto
   };
 
   var res;
@@ -702,12 +747,8 @@ function mostrarListo(t){
   box.querySelector(".enlace-cal").href = enlaceGoogle(t);
   box.querySelector("#otro").addEventListener("click", function(){
     sel = { servicio:null, fecha:null, hora:null };
-    archivo = null;
-    $("nombre").value = ""; $("tel").value = ""; $("comprobante").value = "";
-    var caja = $("caja-archivo");
-    caja.classList.remove("cargado");
-    caja.querySelector(".titulo").textContent = "Adjuntar comprobante";
-    caja.querySelector(".pie").textContent = "Foto o PDF · hasta 5 MB";
+    $("nombre").value = ""; $("tel").value = "";
+    resetCaja("comprobante"); resetCaja("foto");
     box.hidden = true;
     document.querySelectorAll(".hero,.paso").forEach(function(el){ el.hidden = false; });
     $("paso-dia").hidden = true; $("paso-hora").hidden = true;
@@ -751,12 +792,13 @@ function tarjeta(t, conFecha){
   var links = el.querySelectorAll(".mini");
   links[0].href = "https://wa.me/" + String(t.tel).replace(/\D/g,"");
   links[1].href = enlaceGoogle(t);
-  if(t.comprobante){
+  [["comprobante","Ver comprobante"],["foto","Ver foto del pelo"]].forEach(function(par){
+    if(!t[par[0]]) return;
     var a = document.createElement("a");
     a.className = "mini"; a.target = "_blank"; a.rel = "noopener";
-    a.href = t.comprobante; a.textContent = "Ver comprobante";
+    a.href = t[par[0]]; a.textContent = par[1];
     el.querySelector(".t-acc").insertBefore(a, el.querySelector(".borrar"));
-  }
+  });
   el.querySelector(".borrar").addEventListener("click", async function(){
     await pedirCancelar(t.id, t.fecha);
     pintarPanel();
@@ -789,7 +831,8 @@ $("salir-panel").addEventListener("click", function(){
 });
 $("seguir").addEventListener("click", seguir);
 $("confirmar").addEventListener("click", confirmar);
-$("comprobante").addEventListener("change", alElegirArchivo);
+$("comprobante").addEventListener("change", alElegirArchivo("comprobante"));
+$("foto").addEventListener("change", alElegirArchivo("foto"));
 
 document.title = "Turnos — " + CONFIG.salon;
 $("marca").textContent = CONFIG.salon;
