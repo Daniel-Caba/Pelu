@@ -492,12 +492,11 @@ function pintarServicios(){
       pintarServicios();
       $("paso-dia").hidden = false;
       pintarDias();
+      limpiarPasosFinales();
       if(sel.fecha) cargarDia();
-      else { $("paso-hora").hidden = true; $("paso-datos").hidden = true; $("paso-sena").hidden = true; }
+      else $("paso-hora").hidden = true;
       $("paso-dia").scrollIntoView({ behavior:"smooth", block:"start" });
     });
-    c.appendChild(b);
-  });
 }
 
 /* ---------- días ---------- */
@@ -522,6 +521,7 @@ function tiraDias(contenedor, activa, alElegir){
 }
 function elegirDiaClienta(iso){
   sel.fecha = iso; sel.hora = null; recien = null;
+  limpiarPasosFinales();
   pintarDias(); cargarDia();
 }
 function pintarDias(){ tiraDias($("dias"), sel.fecha, elegirDiaClienta); }
@@ -598,6 +598,7 @@ function pintarAgenda(){
 
 /* ---------- formulario ---------- */
 function mostrarFormulario(){
+  $("paso-sena").hidden = true;
   $("paso-datos").hidden = false;
   var d = fechaDesdeIso(sel.fecha);
   $("resumen").innerHTML = "<strong></strong><span></span>";
@@ -723,7 +724,15 @@ function alElegirArchivo(clave){
     }
   };
 }
-
+function limpiarPasosFinales(){
+  $("paso-datos").hidden = true;
+  $("paso-sena").hidden = true;
+  $("aviso-datos").innerHTML = "";
+  $("aviso-reserva").innerHTML = "";
+  resetCaja("comprobante");
+  resetCaja("foto");
+  $("extra").value = "";
+}
 function seguir(){
   var nombre = $("nombre").value.trim(), tel = $("tel").value.trim();
   if(nombre.length < 3){ aviso("Escribí tu nombre y apellido para poder identificar el turno.", "aviso-datos"); return; }
