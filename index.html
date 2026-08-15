@@ -8,7 +8,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,ital,wght@6..96,0,400;6..96,1,400;6..96,0,600&family=Karla:wght@300;400;500;600&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,ital,wght@6..96,0,400;6..96,1,400;6..96,0,600&family=Pinyon+Script&family=Karla:wght@300;400;500;600&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 
 <style>
   :root{
@@ -31,7 +31,22 @@
   .envoltorio{max-width:680px;margin:0 auto;padding:0 20px}
 
   .barra{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:22px 0 18px}
-  .marca{font-family:var(--display);font-size:20px;letter-spacing:.02em}
+  .marca{
+    font-family:"Pinyon Script",cursive;
+    font-size:clamp(32px,8vw,42px);
+    font-weight:400;
+    line-height:1.2;
+    letter-spacing:0;
+  }
+  .marca .bajada{
+    display:block;
+    font-family:var(--texto);
+    font-size:10px;
+    letter-spacing:.34em;
+    text-transform:uppercase;
+    color:var(--gris);
+    margin-top:6px;
+  }
   .btn-panel{
     background:none;border:1px solid var(--regla);border-radius:2px;padding:7px 14px;
     font-size:12px;letter-spacing:.09em;text-transform:uppercase;cursor:pointer;
@@ -167,7 +182,7 @@
 
 <div class="envoltorio">
   <div class="barra">
-    <div class="marca" id="marca">Salón</div>
+    <div class="marca"><span id="marca">Mariel Pardo</span><span class="bajada">Peluquería y belleza</span></div>
     <button class="btn-panel" id="ir-panel">Panel</button>
   </div>
 
