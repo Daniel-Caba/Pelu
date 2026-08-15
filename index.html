@@ -868,7 +868,7 @@ function pedirPin(){
     '<div class="campo"><label for="pin">PIN</label><input id="pin" type="password" inputmode="numeric"></div>' +
     '<div id="aviso-pin"></div>' +
     '<div style="margin-top:14px"><button class="btn" id="entrar">Entrar</button></div>' +
-    '<p class="nota">El PIN está escrito en el código de la página: evita que una clienta entre por curiosidad, pero no es una contraseña segura.</p></div>';
+    '</div>';
   $("entrar").addEventListener("click", function(){
     if($("pin").value === String(CONFIG.pin)){ panelAbierto = true; pintarPanel(); }
     else $("aviso-pin").innerHTML = '<div class="aviso mal">PIN incorrecto.</div>';
