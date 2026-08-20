@@ -628,7 +628,7 @@ function pintarAgenda(){
     });
   } else {
     var limite = CONFIG.ultimoInicio ? aMin(CONFIG.ultimoInicio) : cierra;
-    for(var t = abre; t <= limite && t + sel.servicio.dur <= cierra; t += CONFIG.paso) inicios.push(t);
+        for(var t = abre; t <= limite; t += CONFIG.paso) inicios.push(t);
   }
 
   var slots = inicios.map(function(t){
