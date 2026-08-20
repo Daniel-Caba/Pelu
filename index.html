@@ -198,6 +198,19 @@
     font-family:var(--mono);font-size:10px;letter-spacing:.08em;
     text-transform:uppercase;color:var(--gris);margin-bottom:6px;
   }
+  .bloque-cerrado{border-top:1px solid var(--regla);padding-top:14px;margin-top:14px}
+  .bloque-cerrado:first-child{border-top:0;padding-top:0;margin-top:0}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .chip{
+    display:inline-flex;align-items:center;gap:6px;cursor:pointer;
+    border:1px solid var(--regla);border-radius:999px;padding:5px 11px;
+    font-size:12px;line-height:1.2;transition:border-color .18s,background .18s;
+  }
+  .chip:hover{border-color:var(--blush)}
+  .chip input{margin:0;accent-color:var(--violeta)}
+  .chip.marcado{border-color:var(--violeta);background:#F7F2F8}
+  .alcance{font-family:var(--mono);font-size:10px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--gris);margin:12px 0 0}
 
   .pago{background:var(--papel);border-radius:3px;padding:18px;margin-bottom:16px}
   .pago .monto{font-family:var(--display);font-size:34px;line-height:1.1;color:var(--violeta);margin:0 0 4px}
@@ -461,15 +474,20 @@ async function guardarCerradosEnServidor(lista){
   return await enviar({ accion:"cerrados", pin:CONFIG.pin, lista:lista });
 }
 
-function bloqueCerrado(iso){
+// Un bloque sin lista de servicios cierra TODO el salón.
+// Con lista, cierra solo esos servicios.
+function bloqueCerrado(iso, nombreServicio){
   for(var i=0;i<CERRADOS.length;i++){
     var c = CERRADOS[i];
     if(!c.desde) continue;
-    if(iso >= c.desde && iso <= (c.hasta || c.desde)) return c;
+    if(iso < c.desde || iso > (c.hasta || c.desde)) continue;
+    var lista = c.servicios || [];
+    if(!lista.length) return c;                                   // todo cerrado
+    if(nombreServicio && lista.indexOf(nombreServicio) > -1) return c;  // ese servicio
   }
   return null;
 }
-function estaCerrado(iso){ return !!bloqueCerrado(iso); }
+function estaCerrado(iso, nombreServicio){ return !!bloqueCerrado(iso, nombreServicio); }
 
 async function pedirReserva(t){
   if(!API){
@@ -624,7 +642,8 @@ function tiraDias(contenedor, activa, alElegir){
     var abierto = !!CONFIG.horario[String(d.getDay())];
     var b = document.createElement("button");
     b.className = "dia"; b.type = "button";
-    b.disabled = (!abierto || estaCerrado(iso)) && alElegir === elegirDiaClienta;
+    var cerradoAqui = estaCerrado(iso, sel.servicio ? sel.servicio.nombre : null);
+    b.disabled = (!abierto || cerradoAqui) && alElegir === elegirDiaClienta;
     b.setAttribute("aria-pressed", activa === iso ? "true" : "false");
     b.innerHTML = '<span class="dia-sem"></span><span class="dia-num"></span><span class="dia-mes"></span>';
     b.querySelector(".dia-sem").textContent = i === 0 ? "hoy" : SEM[d.getDay()];
@@ -655,12 +674,14 @@ function pintarAgenda(){
   var franja = CONFIG.horario[String(d.getDay())];
   if(!franja){ cont.innerHTML = '<div class="vacio">Ese día no hay atención. Elegí otro del listado.</div>'; return; }
 
-  var cerrado = bloqueCerrado(sel.fecha);
+  var cerrado = bloqueCerrado(sel.fecha, sel.servicio.nombre);
   if(cerrado){
     cont.innerHTML = '<div class="vacio"></div>';
-    cont.firstChild.textContent = cerrado.nota
-      ? "Ese día no atiendo: " + cerrado.nota + ". Elegí otro del listado."
-      : "Ese día no atiendo. Elegí otro del listado.";
+    var soloEste = (cerrado.servicios || []).length > 0;
+    cont.firstChild.textContent =
+      (soloEste ? "Ese día no hay turnos de este servicio" : "Ese día no atiendo") +
+      (cerrado.nota ? ": " + cerrado.nota : "") +
+      ". Elegí otro del listado.";
     return;
   }
 
@@ -1109,31 +1130,45 @@ async function tabCerrados(){
   var c = $("panel-tab");
   c.innerHTML =
     '<div class="conf-bloque"><h3>Días que no atiendo</h3>' +
-    '<div class="enc-cerrado"><span>Desde</span><span>Hasta</span><span></span></div>' +
     '<div id="lista-cerrados"></div>' +
-    '<button class="mini" id="add-cerrado" style="margin-top:8px">+ Agregar</button>' +
+    '<button class="mini" id="add-cerrado" style="margin-top:14px">+ Agregar</button>' +
     '<div id="aviso-cerrados"></div>' +
     '<div style="margin-top:16px"><button class="btn" id="guardar-cerrados">Guardar</button></div>' +
-    '<p class="nota">Esos días quedan grises y nadie puede reservar. Para un día suelto, poné la misma fecha en Desde y en Hasta. Ojo: esto no cancela los turnos ya reservados, a esas clientas avisales vos.</p></div>';
+    '<p class="nota">Para un día suelto, poné la misma fecha en Desde y en Hasta. ' +
+    'Si no marcás ningún servicio, cierra todo el salón; si marcás algunos, el resto sigue disponible. ' +
+    'Ojo: esto no cancela los turnos ya reservados, a esas clientas avisales vos.</p></div>';
 
   await cargarCerrados();
   var borrador = CERRADOS.map(function(x){
-    return { desde:x.desde || "", hasta:x.hasta || x.desde || "", nota:x.nota || "" };
+    return {
+      desde: x.desde || "",
+      hasta: x.hasta || x.desde || "",
+      nota: x.nota || "",
+      servicios: (x.servicios || []).slice()
+    };
   });
 
   function pintar(){
     var caja = $("lista-cerrados");
     caja.innerHTML = "";
     if(!borrador.length){
-      caja.innerHTML = '<div class="nota" style="margin:0 0 4px">Todavía no cargaste ningún día cerrado.</div>';
+      caja.innerHTML = '<div class="nota" style="margin:0">Todavía no cargaste ningún día cerrado.</div>';
+      return;
     }
+
     borrador.forEach(function(c, i){
-      var f = document.createElement("div");
-      f.className = "fila-cerrado";
-      f.innerHTML =
-        '<input type="date"><input type="date"><button class="mini borrar">✕</button>' +
-        '<input type="text" class="nota-cerrado" placeholder="Motivo (opcional)">';
-      var ins = f.querySelectorAll("input");
+      var bloque = document.createElement("div");
+      bloque.className = "bloque-cerrado";
+      bloque.innerHTML =
+        '<div class="enc-cerrado"><span>Desde</span><span>Hasta</span><span></span></div>' +
+        '<div class="fila-cerrado">' +
+          '<input type="date"><input type="date"><button class="mini borrar">Quitar</button>' +
+          '<input type="text" class="nota-cerrado" placeholder="Motivo (opcional)">' +
+        '</div>' +
+        '<p class="alcance"></p>' +
+        '<div class="chips"></div>';
+
+      var ins = bloque.querySelectorAll(".fila-cerrado input");
       ins[0].value = c.desde; ins[1].value = c.hasta; ins[2].value = c.nota;
       ins[0].addEventListener("input", function(){
         c.desde = this.value;
@@ -1141,16 +1176,47 @@ async function tabCerrados(){
       });
       ins[1].addEventListener("input", function(){ c.hasta = this.value; });
       ins[2].addEventListener("input", function(){ c.nota = this.value; });
-      f.querySelector(".borrar").addEventListener("click", function(){
+      bloque.querySelector(".borrar").addEventListener("click", function(){
         borrador.splice(i,1); pintar();
       });
-      caja.appendChild(f);
+
+      var alcance = bloque.querySelector(".alcance");
+      function textoAlcance(){
+        alcance.textContent = c.servicios.length
+          ? "Cierra solo " + c.servicios.length + " servicio" + (c.servicios.length > 1 ? "s" : "")
+          : "Cierra todo el salón";
+      }
+      textoAlcance();
+
+      var chips = bloque.querySelector(".chips");
+      CONFIG.servicios.forEach(function(s){
+        var lbl = document.createElement("label");
+        lbl.className = "chip";
+        lbl.innerHTML = '<input type="checkbox"><span></span>';
+        lbl.querySelector("span").textContent = s.nombre;
+        var chk = lbl.querySelector("input");
+        chk.checked = c.servicios.indexOf(s.nombre) > -1;
+        if(chk.checked) lbl.classList.add("marcado");
+        chk.addEventListener("change", function(){
+          if(this.checked){
+            if(c.servicios.indexOf(s.nombre) === -1) c.servicios.push(s.nombre);
+            lbl.classList.add("marcado");
+          }else{
+            c.servicios = c.servicios.filter(function(x){ return x !== s.nombre; });
+            lbl.classList.remove("marcado");
+          }
+          textoAlcance();
+        });
+        chips.appendChild(lbl);
+      });
+
+      caja.appendChild(bloque);
     });
   }
   pintar();
 
   $("add-cerrado").addEventListener("click", function(){
-    borrador.push({ desde:"", hasta:"", nota:"" });
+    borrador.push({ desde:"", hasta:"", nota:"", servicios:[] });
     pintar();
   });
 
@@ -1158,7 +1224,9 @@ async function tabCerrados(){
     var btn = this;
     var limpio = borrador
       .filter(function(c){ return c.desde; })
-      .map(function(c){ return { desde:c.desde, hasta:c.hasta || c.desde, nota:c.nota || "" }; });
+      .map(function(c){
+        return { desde:c.desde, hasta:c.hasta || c.desde, nota:c.nota || "", servicios:c.servicios };
+      });
 
     btn.disabled = true; btn.textContent = "Guardando…";
     var res;
