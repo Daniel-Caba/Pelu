@@ -557,7 +557,7 @@ function pintarServicios(){
     b.setAttribute("aria-pressed", sel.servicio && sel.servicio.id === s.id ? "true" : "false");
     b.innerHTML = '<span><span class="serv-nom"></span><br><span class="serv-meta"></span></span><span class="serv-precio"></span>';
     b.querySelector(".serv-nom").textContent = s.nombre;
-    b.querySelector(".serv-meta").textContent = dur(s.dur);
+    b.querySelector(".serv-meta").textContent = "";
     b.querySelector(".serv-precio").textContent = precioTexto(s) || "a consultar";
     b.addEventListener("click", function(){
       sel.servicio = s; sel.hora = null;
@@ -657,7 +657,7 @@ function pintarAgenda(){
     b.innerHTML = '<span class="hora"></span><span class="regla"></span><span class="estado"></span>';
     b.querySelector(".hora").textContent = s.hora;
     b.querySelector(".estado").textContent = s.libre
-      ? (s.ultimo ? "último lugar" : "hasta " + aHora(s.fin))
+      ? (s.ultimo ? "último lugar" : "")
       : (s.pasado ? "ya pasó" : "reservado");
     if(!s.libre){
       var x = document.createElement("span");
