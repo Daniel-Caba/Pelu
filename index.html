@@ -677,9 +677,8 @@ function mostrarFormulario(){
   var d = fechaDesdeIso(sel.fecha);
   $("resumen").innerHTML = "<strong></strong><span></span>";
   $("resumen").querySelector("strong").textContent = sel.servicio.nombre;
-  $("resumen").querySelector("span").textContent =
+    $("resumen").querySelector("span").textContent =
     SEML[d.getDay()] + " " + d.getDate() + " de " + MES[d.getMonth()] + " · " + sel.hora +
-    " · " + dur(sel.servicio.dur) +
     (precioTexto(sel.servicio) ? " · " + precioTexto(sel.servicio) : "");
   $("aviso-datos").innerHTML = "";
   $("paso-datos").scrollIntoView({ behavior:"smooth", block:"start" });
