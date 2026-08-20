@@ -462,6 +462,21 @@ async function guardarPreciosEnServidor(lista){
 // Días cerrados: feriados, vacaciones. Se editan desde el panel.
 var CERRADOS = [];   // [{desde:"2026-09-15", hasta:"2026-09-22", nota:"Vacaciones"}]
 
+  // Trae precios y días cerrados de una sola vez.
+async function cargarInicio(){
+  if(!API) return;
+  try{
+    var j = await llamar({ accion:"inicio" });
+    var p = j.precios || {};
+    CONFIG.servicios.forEach(function(s){
+      if(p[s.id] !== undefined && p[s.id] !== null && p[s.id] !== "") s.precio = Number(p[s.id]);
+    });
+    CERRADOS = j.cerrados || [];
+    pintarServicios();
+    if(sel.servicio) pintarDias();
+  }catch(e){ /* si falla, quedan los valores del código */ }
+}
+
 async function cargarCerrados(){
   if(!API) return;
   try{
@@ -1266,11 +1281,9 @@ if(!API){
     '<div class="banner"><strong>Modo demo.</strong> Falta conectar el backend: los turnos no se guardan ' +
     'y no se bloquean para las demás. Pegá la URL de tu Apps Script en la variable <code>API</code>.</div>';
 }
-(async function(){
-  await aplicarPrecios();
-  await cargarCerrados();
-  pintarServicios();
-})();
+// Dibujamos ya con los precios del código, y actualizamos cuando llegue el servidor.
+pintarServicios();
+cargarInicio();
 
 })();
 </script>
