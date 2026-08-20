@@ -183,6 +183,21 @@
     grid-column:2;font-family:var(--mono);font-size:10px;color:var(--gris);
     text-align:right;margin-top:-4px;
   }
+  .fila-cerrado{
+    display:grid;grid-template-columns:1fr 1fr auto;gap:8px;
+    align-items:center;margin-bottom:10px;
+  }
+  .fila-cerrado input{
+    border:1px solid var(--regla);border-radius:3px;padding:9px 10px;
+    font-family:var(--mono);font-size:13px;width:100%;min-width:0;
+  }
+  .fila-cerrado input:focus{border-color:var(--violeta)}
+  .fila-cerrado .nota-cerrado{grid-column:1/3}
+  .enc-cerrado{
+    display:grid;grid-template-columns:1fr 1fr auto;gap:8px;
+    font-family:var(--mono);font-size:10px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--gris);margin-bottom:6px;
+  }
 
   .pago{background:var(--papel);border-radius:3px;padding:18px;margin-bottom:16px}
   .pago .monto{font-family:var(--display);font-size:34px;line-height:1.1;color:var(--violeta);margin:0 0 4px}
@@ -317,9 +332,9 @@ var CONFIG = {
   // ─────────────────────────────────────────────────────────────
   sena: 0.25,          // 25% del precio
   pago: {
-    alias: "Marielpardo.1995",         // ej: "PELUQUERIA.MP"
-    cbu: "0000003100022067342882",           // opcional
-    titular: "Mariela Soledad Pardo"        // ej: "María Gómez"
+    alias: "Marielpardo.1995",
+    cbu: "0000003100022067342882",
+    titular: "Mariela Soledad Pardo"
   },
 
   // foto:   si está, se le pide una foto a la clienta.
@@ -354,8 +369,8 @@ var CONFIG = {
     { id:"s10", nombre:"Pestañas",                        dur:90,  precio:18000, desde:true },
 
     // Sin precio: no se pide seña. Sí foto de referencia y zona del cuerpo.
-    { id:"s11", nombre:"Tatuaje",                         dur:60,  precio:0, max:1,
-     grupo: "Color",
+    { id:"s11", nombre:"Tatuaje",                         dur:60,  precio:0,
+      grupo:"Color", max:1,
       foto:{ titulo:"Foto de referencia",
              ayuda:"El diseño que te querés hacer" },
       campo:{ etiqueta:"Zona del cuerpo",
@@ -430,6 +445,31 @@ async function aplicarPrecios(){
 async function guardarPreciosEnServidor(lista){
   return await enviar({ accion:"precios", pin:CONFIG.pin, lista:lista });
 }
+
+// Días cerrados: feriados, vacaciones. Se editan desde el panel.
+var CERRADOS = [];   // [{desde:"2026-09-15", hasta:"2026-09-22", nota:"Vacaciones"}]
+
+async function cargarCerrados(){
+  if(!API) return;
+  try{
+    var j = await llamar({ accion:"cerrados" });
+    CERRADOS = j.cerrados || [];
+  }catch(e){ CERRADOS = []; }
+}
+
+async function guardarCerradosEnServidor(lista){
+  return await enviar({ accion:"cerrados", pin:CONFIG.pin, lista:lista });
+}
+
+function bloqueCerrado(iso){
+  for(var i=0;i<CERRADOS.length;i++){
+    var c = CERRADOS[i];
+    if(!c.desde) continue;
+    if(iso >= c.desde && iso <= (c.hasta || c.desde)) return c;
+  }
+  return null;
+}
+function estaCerrado(iso){ return !!bloqueCerrado(iso); }
 
 async function pedirReserva(t){
   if(!API){
@@ -584,7 +624,7 @@ function tiraDias(contenedor, activa, alElegir){
     var abierto = !!CONFIG.horario[String(d.getDay())];
     var b = document.createElement("button");
     b.className = "dia"; b.type = "button";
-    b.disabled = !abierto && alElegir === elegirDiaClienta;
+    b.disabled = (!abierto || estaCerrado(iso)) && alElegir === elegirDiaClienta;
     b.setAttribute("aria-pressed", activa === iso ? "true" : "false");
     b.innerHTML = '<span class="dia-sem"></span><span class="dia-num"></span><span class="dia-mes"></span>';
     b.querySelector(".dia-sem").textContent = i === 0 ? "hoy" : SEM[d.getDay()];
@@ -615,6 +655,15 @@ function pintarAgenda(){
   var franja = CONFIG.horario[String(d.getDay())];
   if(!franja){ cont.innerHTML = '<div class="vacio">Ese día no hay atención. Elegí otro del listado.</div>'; return; }
 
+  var cerrado = bloqueCerrado(sel.fecha);
+  if(cerrado){
+    cont.innerHTML = '<div class="vacio"></div>';
+    cont.firstChild.textContent = cerrado.nota
+      ? "Ese día no atiendo: " + cerrado.nota + ". Elegí otro del listado."
+      : "Ese día no atiendo. Elegí otro del listado.";
+    return;
+  }
+
   var abre = aMin(franja[0]), cierra = aMin(franja[1]);
   var ahora = new Date();
   var esHoy = sel.fecha === isoFecha(ahora);
@@ -629,7 +678,7 @@ function pintarAgenda(){
     });
   } else {
     var limite = CONFIG.ultimoInicio ? aMin(CONFIG.ultimoInicio) : cierra;
-        for(var t = abre; t <= limite; t += CONFIG.paso) inicios.push(t);
+    for(var t = abre; t <= limite; t += CONFIG.paso) inicios.push(t);
   }
 
   var slots = inicios.map(function(t){
@@ -678,7 +727,7 @@ function mostrarFormulario(){
   var d = fechaDesdeIso(sel.fecha);
   $("resumen").innerHTML = "<strong></strong><span></span>";
   $("resumen").querySelector("strong").textContent = sel.servicio.nombre;
-    $("resumen").querySelector("span").textContent =
+  $("resumen").querySelector("span").textContent =
     SEML[d.getDay()] + " " + d.getDate() + " de " + MES[d.getMonth()] + " · " + sel.hora +
     (precioTexto(sel.servicio) ? " · " + precioTexto(sel.servicio) : "");
   $("aviso-datos").innerHTML = "";
@@ -981,13 +1030,15 @@ async function pintarPanel(){
     '<div class="tabs">' +
       '<button class="tab" data-t="turnos">Turnos</button>' +
       '<button class="tab" data-t="precios">Precios</button>' +
+      '<button class="tab" data-t="cerrados">Cerrados</button>' +
     '</div><div id="panel-tab"></div>';
   c.querySelectorAll(".tab").forEach(function(b){
     b.setAttribute("aria-selected", b.dataset.t === panelTab ? "true" : "false");
     b.addEventListener("click", function(){ panelTab = b.dataset.t; pintarPanel(); });
   });
   if(panelTab === "turnos") await tabTurnos();
-  else tabPrecios();
+  else if(panelTab === "precios") tabPrecios();
+  else await tabCerrados();
 }
 
 async function tabTurnos(){
@@ -1054,6 +1105,76 @@ function tabPrecios(){
   });
 }
 
+async function tabCerrados(){
+  var c = $("panel-tab");
+  c.innerHTML =
+    '<div class="conf-bloque"><h3>Días que no atiendo</h3>' +
+    '<div class="enc-cerrado"><span>Desde</span><span>Hasta</span><span></span></div>' +
+    '<div id="lista-cerrados"></div>' +
+    '<button class="mini" id="add-cerrado" style="margin-top:8px">+ Agregar</button>' +
+    '<div id="aviso-cerrados"></div>' +
+    '<div style="margin-top:16px"><button class="btn" id="guardar-cerrados">Guardar</button></div>' +
+    '<p class="nota">Esos días quedan grises y nadie puede reservar. Para un día suelto, poné la misma fecha en Desde y en Hasta. Ojo: esto no cancela los turnos ya reservados, a esas clientas avisales vos.</p></div>';
+
+  await cargarCerrados();
+  var borrador = CERRADOS.map(function(x){
+    return { desde:x.desde || "", hasta:x.hasta || x.desde || "", nota:x.nota || "" };
+  });
+
+  function pintar(){
+    var caja = $("lista-cerrados");
+    caja.innerHTML = "";
+    if(!borrador.length){
+      caja.innerHTML = '<div class="nota" style="margin:0 0 4px">Todavía no cargaste ningún día cerrado.</div>';
+    }
+    borrador.forEach(function(c, i){
+      var f = document.createElement("div");
+      f.className = "fila-cerrado";
+      f.innerHTML =
+        '<input type="date"><input type="date"><button class="mini borrar">✕</button>' +
+        '<input type="text" class="nota-cerrado" placeholder="Motivo (opcional)">';
+      var ins = f.querySelectorAll("input");
+      ins[0].value = c.desde; ins[1].value = c.hasta; ins[2].value = c.nota;
+      ins[0].addEventListener("input", function(){
+        c.desde = this.value;
+        if(!c.hasta || c.hasta < c.desde){ c.hasta = c.desde; ins[1].value = c.desde; }
+      });
+      ins[1].addEventListener("input", function(){ c.hasta = this.value; });
+      ins[2].addEventListener("input", function(){ c.nota = this.value; });
+      f.querySelector(".borrar").addEventListener("click", function(){
+        borrador.splice(i,1); pintar();
+      });
+      caja.appendChild(f);
+    });
+  }
+  pintar();
+
+  $("add-cerrado").addEventListener("click", function(){
+    borrador.push({ desde:"", hasta:"", nota:"" });
+    pintar();
+  });
+
+  $("guardar-cerrados").addEventListener("click", async function(){
+    var btn = this;
+    var limpio = borrador
+      .filter(function(c){ return c.desde; })
+      .map(function(c){ return { desde:c.desde, hasta:c.hasta || c.desde, nota:c.nota || "" }; });
+
+    btn.disabled = true; btn.textContent = "Guardando…";
+    var res;
+    try{ res = await guardarCerradosEnServidor(limpio); }
+    catch(e){ res = { ok:false }; }
+    btn.disabled = false; btn.textContent = "Guardar";
+
+    if(res && res.ok){
+      CERRADOS = limpio;
+      $("aviso-cerrados").innerHTML = '<div class="aviso bien">Guardado.</div>';
+    }else{
+      $("aviso-cerrados").innerHTML = '<div class="aviso mal">No se pudo guardar. Revisá la conexión y probá de nuevo.</div>';
+    }
+  });
+}
+
 /* ---------- arranque ---------- */
 $("ir-panel").addEventListener("click", function(){
   $("vista-clienta").hidden = true; $("vista-panel").hidden = false;
@@ -1079,6 +1200,7 @@ if(!API){
 }
 (async function(){
   await aplicarPrecios();
+  await cargarCerrados();
   pintarServicios();
 })();
 
