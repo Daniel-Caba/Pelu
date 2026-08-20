@@ -461,6 +461,8 @@ async function guardarPreciosEnServidor(lista){
 
 // Días cerrados: feriados, vacaciones. Se editan desde el panel.
 var CERRADOS = [];   // [{desde:"2026-09-15", hasta:"2026-09-22", nota:"Vacaciones"}]
+  // Mientras no lleguen los precios del servidor, mostramos "···" en vez de un número viejo.
+var preciosListos = !API;
 
   // Trae precios y días cerrados de una sola vez.
 async function cargarInicio(){
@@ -472,6 +474,7 @@ async function cargarInicio(){
       if(p[s.id] !== undefined && p[s.id] !== null && p[s.id] !== "") s.precio = Number(p[s.id]);
     });
     CERRADOS = j.cerrados || [];
+    preciosListos = true;
     pintarServicios();
     if(sel.servicio) pintarDias();
   }catch(e){ /* si falla, quedan los valores del código */ }
@@ -632,7 +635,8 @@ function pintarServicios(){
     b.innerHTML = '<span><span class="serv-nom"></span><br><span class="serv-meta"></span></span><span class="serv-precio"></span>';
     b.querySelector(".serv-nom").textContent = s.nombre;
     b.querySelector(".serv-meta").textContent = "";
-    b.querySelector(".serv-precio").textContent = precioTexto(s) || "a consultar";
+        b.querySelector(".serv-precio").textContent =
+      preciosListos ? (precioTexto(s) || "a consultar") : "···";
     b.addEventListener("click", function(){
       sel.servicio = s; sel.hora = null;
       pintarServicios();
