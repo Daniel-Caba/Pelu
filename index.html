@@ -60,9 +60,6 @@
   .hero h1 em{font-style:italic;color:var(--violeta)}
   .hero p{margin:0;max-width:46ch;color:#5B5262;font-size:15px}
 
-  .contactos{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
-  .contactos .wsp{margin-top:0}
-  .wsp .pin{font-size:16px;line-height:1}
   .wsp{
     display:inline-flex;align-items:center;gap:9px;margin-top:18px;
     text-decoration:none;color:var(--ink);
@@ -236,28 +233,6 @@
     font-family:var(--mono);font-size:14px;width:100%;text-align:right;
   }
   .fila-cupo input:focus{border-color:var(--violeta)}
-  .fila-cupo .quitar{grid-column:3}
-  .fila-equipo{
-    display:grid;grid-template-columns:1fr 72px auto;gap:8px;
-    align-items:center;margin-bottom:8px;
-  }
-  .fila-equipo input[type="text"]{
-    border:1px solid var(--regla);border-radius:3px;padding:9px 10px;
-    font-size:14px;width:100%;min-width:0;
-  }
-  .fila-equipo input[type="number"]{
-    border:1px solid var(--regla);border-radius:3px;padding:9px 10px;
-    font-family:var(--mono);font-size:14px;width:100%;text-align:right;
-  }
-  .fila-asig{
-    display:grid;grid-template-columns:1fr 1fr;gap:8px;
-    align-items:center;margin-bottom:6px;
-  }
-  .fila-asig .nom{grid-column:1/3;font-size:14px;margin-top:8px}
-  .fila-asig select{
-    border:1px solid var(--regla);border-radius:3px;padding:9px 10px;
-    font-size:13px;width:100%;min-width:0;background:var(--papel);
-  }
 
   .pago{background:var(--papel);border-radius:3px;padding:18px;margin-bottom:16px}
   .pago .monto{font-family:var(--display);font-size:34px;line-height:1.1;color:var(--violeta);margin:0 0 4px}
@@ -300,7 +275,9 @@
       <p class="rubro">Turnos online</p>
       <h1>Elegí tu <em>horario</em></h1>
       <p>Reservá tu turno online, cuando quieras. Si tenés alguna duda, escribime y lo vemos juntas.</p>
-      <div class="contactos">
+
+
+            <div class="contactos">
         <a class="wsp" href="https://wa.me/5491128729064" target="_blank" rel="noopener">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
           11 2872-9064
@@ -310,7 +287,11 @@
           Av. Croacia 1517 · José C. Paz
         </a>
       </div>
+
+      
     </section>
+
+    
 
     <section class="paso">
       <div class="paso-cab"><span class="paso-n">01</span><h2>Servicio</h2></div>
@@ -390,15 +371,8 @@ var CONFIG = {
   paso: 30,
   ultimoInicio: "18:00",
 
-  // Tope de fondo, solo para servicios sin persona asignada.
+  // Cuántas clientas podés atender al mismo tiempo.
   capacidad: 2,
-
-  // Quiénes atienden y cuántas clientas lleva cada una a la vez.
-  // Se editan desde el panel; esto es solo el valor inicial.
-  personas: { "Mariel": 2, "Ani": 2 },
-
-  // Recursos compartidos: la silla de color, la mesa de uñas.
-  grupos: { "Color": 1, "Uñas": 1 },
 
   // ─────────────────────────────────────────────────────────────
   // SEÑA — completá estos datos o el paso no aparece
@@ -417,34 +391,33 @@ var CONFIG = {
   // max:    cuántos turnos de ese grupo podés tener a la vez.
   // desde:  true = el precio es un mínimo. La seña se calcula sobre él.
   // precio: EN NÚMEROS, sin puntos ni signo $. Con precio 0 no se pide seña.
-  // persona: quién lo hace.  grupo: recurso que comparte con otros servicios.
   servicios: [
     { id:"s1",  nombre:"Balayage",                        dur:120, precio:130000, desde:true,
-      horas:["08:00","10:00","12:00","14:00"], persona:"Mariel", grupo:"Color",
+      horas:["08:00","10:00","12:00","14:00"], grupo:"Color", max:1,
       foto:{ titulo:"Foto de tu pelo",
              ayuda:"Actual, con luz natural, el pelo suelto y sin filtros" } },
 
     { id:"s2",  nombre:"Retoque o contornos",             dur:120, precio:90000,
-      horas:["08:00","10:00","12:00","14:00"], persona:"Mariel", grupo:"Color" },
+      horas:["08:00","10:00","12:00","14:00"], grupo:"Color", max:1 },
 
     { id:"s3",  nombre:"Gorra",                           dur:120, precio:110000, desde:true,
-      horas:["08:00","10:00","12:00","14:00"], persona:"Mariel", grupo:"Color" },
+      horas:["08:00","10:00","12:00","14:00"] },
 
     { id:"s4",  nombre:"Color masculino",                 dur:45,  precio:40000,  desde:true,
-      horas:["08:00","10:00","12:00","14:00"], persona:"Mariel" },
+      horas:["08:00","10:00","12:00","14:00"] },
 
-    { id:"s5",  nombre:"Tratamiento capilar",             dur:60,  precio:20000, persona:"Mariel" },
-    { id:"s6",  nombre:"Lavado, secado y planchado",      dur:45,  precio:20000, persona:"Mariel" },
+    { id:"s5",  nombre:"Tratamiento capilar",             dur:60,  precio:20000 },
+    { id:"s6",  nombre:"Lavado, secado y planchado",      dur:45,  precio:20000 },
 
-    { id:"s7",  nombre:"Uñas - Capping",                  dur:120, precio:22000, persona:"Ani", grupo:"Uñas" },
-    { id:"s8",  nombre:"Uñas - Semipermanente",           dur:60,  precio:18000, persona:"Ani", grupo:"Uñas" },
-    { id:"s9",  nombre:"Uñas - Esculpidas",               dur:120, precio:22000, persona:"Ani", grupo:"Uñas" },
+    { id:"s7",  nombre:"Uñas - Capping",                  dur:120, precio:22000 },
+    { id:"s8",  nombre:"Uñas - Semipermanente",           dur:60,  precio:18000 },
+    { id:"s9",  nombre:"Uñas - Esculpidas",               dur:120, precio:22000 },
 
-    { id:"s10", nombre:"Pestañas",                        dur:90,  precio:18000, desde:true, persona:"Ani" },
+    { id:"s10", nombre:"Pestañas",                        dur:90,  precio:18000, desde:true },
 
     // Sin precio: no se pide seña. Sí foto de referencia y zona del cuerpo.
     { id:"s11", nombre:"Tatuaje",                         dur:60,  precio:0,
-      persona:"Mariel", grupo:"Color",
+      grupo:"Color", max:1,
       foto:{ titulo:"Foto de referencia",
              ayuda:"El diseño que te querés hacer" },
       campo:{ etiqueta:"Zona del cuerpo",
@@ -526,10 +499,8 @@ var CERRADOS = [];   // [{desde:"2026-09-15", hasta:"2026-09-22", nota:"Vacacion
 // Mientras no lleguen los precios del servidor, mostramos "···" en vez de un número viejo.
 var preciosListos = !API;
 
-// Equipo, editable desde el panel. Pisa a lo que dice CONFIG.
-// personas: { "Mariel":2 }   grupos: { "Color":1 }
-// asign:    { "Balayage": { persona:"Mariel", grupo:"Color" } }
-var EQUIPO = { personas:{}, grupos:{}, asign:{} };
+// Cupos por grupo, editables desde el panel. Ej: { "Color": 1 }
+var CUPOS = {};
 
 // Trae precios, días cerrados, horarios y cupos de una sola vez.
 async function cargarInicio(){
@@ -544,12 +515,9 @@ async function cargarInicio(){
 
     // Horarios y cupos de la planilla pisan a los del código
     if(j.horario && Object.keys(j.horario).length) CONFIG.horario = j.horario;
-    if(j.equipo){
-      EQUIPO = {
-        personas: j.equipo.personas || {},
-        grupos:   j.equipo.grupos   || {},
-        asign:    j.equipo.asign    || {}
-      };
+    if(j.cupos){
+      if(Number(j.cupos.capacidad) > 0) CONFIG.capacidad = Number(j.cupos.capacidad);
+      CUPOS = j.cupos.grupos || {};
     }
 
     preciosListos = true;
@@ -570,8 +538,8 @@ async function guardarCerradosEnServidor(lista){
   return await enviar({ accion:"cerrados", pin:CONFIG.pin, lista:lista });
 }
 
-async function guardarAjustesEnServidor(horario, equipo){
-  return await enviar({ accion:"ajustes", pin:CONFIG.pin, horario:horario, equipo:equipo });
+async function guardarAjustesEnServidor(horario, cupos){
+  return await enviar({ accion:"ajustes", pin:CONFIG.pin, horario:horario, cupos:cupos });
 }
 
 // Un bloque sin lista de servicios cierra TODO el salón.
@@ -647,45 +615,36 @@ function grupoDe(nombre){
   var s = servicioPorNombre(nombre);
   return (s && s.grupo) || nombre;
 }
-// Quién hace un servicio y qué recurso comparte.
-// Manda lo que diga el panel; si no está, lo que dice el código.
-function datosDe(nombreServicio){
-  var a = EQUIPO.asign[nombreServicio];
-  if(a) return { persona: a.persona || "", grupo: a.grupo || "" };
-  var s = servicioPorNombre(nombreServicio);
-  return { persona: (s && s.persona) || "", grupo: (s && s.grupo) || "" };
+// El cupo sale de la planilla; si no está cargado, del código.
+function limiteDe(nombre){
+  var g = grupoDe(nombre);
+  if(Number(CUPOS[g]) > 0) return Number(CUPOS[g]);
+  var s = servicioPorNombre(nombre);
+  return (s && s.max) || CONFIG.capacidad;
 }
 
-function topePersona(nombre){
-  var v = Number(EQUIPO.personas[nombre]);
-  if(v > 0) return v;
-  v = Number((CONFIG.personas || {})[nombre]);
-  return v > 0 ? v : CONFIG.capacidad;
-}
-
-// 0 = el grupo no tiene tope propio
-function topeGrupo(nombre){
-  if(!nombre) return 0;
-  var v = Number(EQUIPO.grupos[nombre]);
-  if(v > 0) return v;
-  v = Number((CONFIG.grupos || {})[nombre]);
-  return v > 0 ? v : 0;
-}
-
-// Lista de personas y de grupos, sin repetir, para armar el panel
-function nombresDe(cual){
-  var vistos = [];
-  Object.keys(cual === "personas" ? (EQUIPO.personas || {}) : (EQUIPO.grupos || {}))
-    .forEach(function(k){ if(vistos.indexOf(k) === -1) vistos.push(k); });
-  Object.keys(cual === "personas" ? (CONFIG.personas || {}) : (CONFIG.grupos || {}))
-    .forEach(function(k){ if(vistos.indexOf(k) === -1) vistos.push(k); });
+// Lista de grupos sin repetir. Un servicio sin grupo es su propio grupo.
+function gruposUnicos(){
+  var vistos = [], out = [];
   CONFIG.servicios.forEach(function(s){
-    var d = datosDe(s.nombre);
-    var k = cual === "personas" ? d.persona : d.grupo;
-    if(k && vistos.indexOf(k) === -1) vistos.push(k);
+    var g = s.grupo || s.nombre;
+    if(vistos.indexOf(g) > -1) return;
+    vistos.push(g);
+    out.push({
+      grupo: g,
+      servicios: CONFIG.servicios
+        .filter(function(x){ return (x.grupo || x.nombre) === g; })
+        .map(function(x){ return x.nombre; })
+    });
   });
-  return vistos;
+  return out;
 }
+// "desde $130.000" o "$20.000"
+function precioTexto(s){
+  if(!(Number(s.precio) > 0)) return "";
+  return (s.desde ? "desde " : "") + plata(s.precio);
+}
+function pideCampo(s){ return !!(s && s.campo); }
 
 // Turnos ya reservados que se pisan con el tramo [ini, fin)
 function solapados(lista, ini, fin){
@@ -697,18 +656,16 @@ function solapados(lista, ini, fin){
 
 // ¿Entra un turno nuevo de ese servicio en [ini, fin)?
 // Devuelve null si entra, o el motivo por el que no:
-//   "persona" -> quien lo hace ya está ocupada
-//   "grupo"   -> el recurso compartido está tomado (silla de color, mesa de uñas)
-//   "lleno"   -> se llegó al tope general
+//   "mismo" -> ya hay otro turno de ese mismo servicio
+//   "lleno" -> se llegó al tope de turnos simultáneos
 function porQueNoEntra(lista, ini, fin, nombreServicio){
   var choques = solapados(lista, ini, fin);
   if(!choques.length) return null;
 
-  var mio = datosDe(nombreServicio);
-  var maxP = mio.persona ? topePersona(mio.persona) : 0;
-  var maxG = topeGrupo(mio.grupo);
+  var tope = limiteDe(nombreServicio);
 
-  // La cantidad de turnos simultáneos solo cambia cuando arranca uno.
+  // La cantidad de turnos simultáneos solo cambia cuando arranca uno,
+  // así que alcanza con contar en esos instantes.
   var puntos = [ini];
   choques.forEach(function(r){
     var a = aMin(r.hora);
@@ -716,18 +673,16 @@ function porQueNoEntra(lista, ini, fin, nombreServicio){
   });
 
   for(var p=0;p<puntos.length;p++){
-    var momento = puntos[p], total = 0, mismaPersona = 0, mismoGrupo = 0;
+    var momento = puntos[p], total = 0, mismos = 0;
     choques.forEach(function(r){
       var a = aMin(r.hora), b = a + Number(r.dur);
-      if(a > momento || momento >= b) return;
-      total++;
-      var d = datosDe(r.servicio);
-      if(mio.persona && d.persona === mio.persona) mismaPersona++;
-      if(mio.grupo   && d.grupo   === mio.grupo)   mismoGrupo++;
+      if(a <= momento && momento < b){
+        total++;
+        if(grupoDe(r.servicio) === grupoDe(nombreServicio)) mismos++;
+      }
     });
-    if(maxG && mismoGrupo + 1 > maxG) return "grupo";
-    if(maxP && mismaPersona + 1 > maxP) return "persona";
-    if(!mio.persona && total + 1 > CONFIG.capacidad) return "lleno";
+    if(mismos + 1 > tope) return "mismo";
+    if(total  + 1 > CONFIG.capacidad) return "lleno";
   }
   return null;
 }
@@ -1384,32 +1339,28 @@ function tabAjustes(){
   c.innerHTML =
     '<div class="conf-bloque"><h3>Días y horarios de atención</h3>' +
       '<div id="lista-horarios"></div>' +
-      '<p class="nota">Destildá un día para dejar de atenderlo. El horario de cierre no frena a los servicios largos: si el turno arranca antes del último horario, entra aunque termine más tarde.</p>' +
+      '<p class="nota">Destildá un día para dejar de atenderlo. El horario de cierre no frena a los servicios largos: si un turno arranca antes del último horario, se puede reservar aunque termine más tarde.</p>' +
     '</div>' +
-    '<div class="conf-bloque"><h3>Quiénes atienden</h3>' +
-      '<div id="lista-personas"></div>' +
-      '<button class="mini" id="add-persona" style="margin-top:8px">+ Agregar persona</button>' +
-      '<p class="nota">El número es cuántas clientas puede llevar esa persona al mismo tiempo.</p>' +
-    '</div>' +
-    '<div class="conf-bloque"><h3>Recursos compartidos</h3>' +
-      '<div id="lista-grupos"></div>' +
-      '<button class="mini" id="add-grupo" style="margin-top:8px">+ Agregar recurso</button>' +
-      '<p class="nota">Cosas que hay una sola: la silla de color, la mesa de uñas. El número es cuántos turnos de ese recurso pueden ir a la vez.</p>' +
-    '</div>' +
-    '<div class="conf-bloque"><h3>Quién hace cada servicio</h3>' +
-      '<div id="lista-asig"></div>' +
+    '<div class="conf-bloque"><h3>Cuántos turnos a la vez</h3>' +
+      '<div class="fila-cupo" style="margin-bottom:14px">' +
+        '<span class="nom"><strong>En todo el salón</strong>' +
+        '<span class="det">Tope general de turnos simultáneos</span></span>' +
+        '<input type="number" id="cap-total" min="1" max="10">' +
+      '</div>' +
+      '<div id="lista-cupos"></div>' +
+      '<p class="nota">Cada fila es un grupo de servicios que comparte a la misma persona. Dejalo en 0 para que use el tope general. Si sumás una peluquera, subí el número del grupo y el general.</p>' +
     '</div>' +
     '<div id="aviso-ajustes"></div>' +
     '<div style="margin-top:16px"><button class="btn" id="guardar-ajustes">Guardar</button></div>';
 
-  /* ----- horarios ----- */
-  var horas = {};
+  // ----- horarios -----
+  var borrador = {};
   [0,1,2,3,4,5,6].forEach(function(d){
     var f = CONFIG.horario[String(d)];
-    horas[String(d)] = f ? [f[0], f[1]] : null;
+    borrador[String(d)] = f ? [f[0], f[1]] : null;
   });
 
-  var cajaH = $("lista-horarios");
+  var caja = $("lista-horarios");
   [1,2,3,4,5,6,0].forEach(function(d){
     var f = document.createElement("div");
     f.className = "fila-horario";
@@ -1417,128 +1368,70 @@ function tabAjustes(){
       '<label><input type="checkbox"> abre</label>';
     f.querySelector(".d").textContent = SEM[d];
     var ins = f.querySelectorAll("input");
-    var abierto = !!horas[String(d)];
-    ins[0].value = abierto ? horas[String(d)][0] : "08:00";
-    ins[1].value = abierto ? horas[String(d)][1] : "18:00";
+    var abierto = !!borrador[String(d)];
+    ins[0].value = abierto ? borrador[String(d)][0] : "08:00";
+    ins[1].value = abierto ? borrador[String(d)][1] : "18:00";
     ins[2].checked = abierto;
     ins[0].disabled = !abierto; ins[1].disabled = !abierto;
+
     function sync(){
       var abre = ins[2].checked;
       ins[0].disabled = !abre; ins[1].disabled = !abre;
-      horas[String(d)] = abre ? [ins[0].value, ins[1].value] : null;
+      borrador[String(d)] = abre ? [ins[0].value, ins[1].value] : null;
     }
     ins[0].addEventListener("input", sync);
     ins[1].addEventListener("input", sync);
     ins[2].addEventListener("change", sync);
-    cajaH.appendChild(f);
+    caja.appendChild(f);
   });
 
-  /* ----- personas y grupos ----- */
-  var personas = nombresDe("personas").map(function(p){ return { nombre:p, max:topePersona(p) }; });
-  var grupos   = nombresDe("grupos").map(function(g){ return { nombre:g, max:topeGrupo(g) || 1 }; });
-
-  function pintarEquipo(cual){
-    var lista = cual === "personas" ? personas : grupos;
-    var caja = $(cual === "personas" ? "lista-personas" : "lista-grupos");
-    caja.innerHTML = "";
-    lista.forEach(function(x, i){
-      var f = document.createElement("div");
-      f.className = "fila-equipo";
-      f.innerHTML = '<input type="text"><input type="number" min="1" max="10">' +
-        '<button class="mini borrar">Quitar</button>';
-      var ins = f.querySelectorAll("input");
-      ins[0].value = x.nombre; ins[1].value = x.max;
-      ins[0].addEventListener("input", function(){ x.nombre = this.value; });
-      ins[1].addEventListener("input", function(){ x.max = Number(this.value) || 1; });
-      f.querySelector(".borrar").addEventListener("click", function(){
-        lista.splice(i,1); pintarEquipo(cual); pintarAsig();
-      });
-      caja.appendChild(f);
-    });
-  }
-
-  /* ----- asignación de servicios ----- */
-  var asig = {};
-  CONFIG.servicios.forEach(function(s){
-    var d = datosDe(s.nombre);
-    asig[s.nombre] = { persona:d.persona, grupo:d.grupo };
+  // ----- cupos -----
+  $("cap-total").value = CONFIG.capacidad;
+  var cajaC = $("lista-cupos");
+  gruposUnicos().forEach(function(g){
+    var f = document.createElement("div");
+    f.className = "fila-cupo";
+    f.innerHTML = '<span class="nom"></span><input type="number" min="0" max="10">';
+    var nom = f.querySelector(".nom");
+    nom.textContent = g.grupo;
+    if(g.servicios.length > 1 || g.servicios[0] !== g.grupo){
+      var det = document.createElement("span");
+      det.className = "det";
+      det.textContent = g.servicios.join(", ");
+      nom.appendChild(det);
+    }
+    var input = f.querySelector("input");
+    input.value = Number(CUPOS[g.grupo]) || 0;
+    input.setAttribute("data-grupo", g.grupo);
+    cajaC.appendChild(f);
   });
 
-  function pintarAsig(){
-    var caja = $("lista-asig");
-    caja.innerHTML = "";
-    CONFIG.servicios.forEach(function(s){
-      var f = document.createElement("div");
-      f.className = "fila-asig";
-      f.innerHTML = '<span class="nom"></span><select class="sp"></select><select class="sg"></select>';
-      f.querySelector(".nom").textContent = s.nombre;
-
-      var sp = f.querySelector(".sp"), sg = f.querySelector(".sg");
-      var op = document.createElement("option");
-      op.value = ""; op.textContent = "— sin asignar —";
-      sp.appendChild(op);
-      personas.forEach(function(p){
-        if(!p.nombre) return;
-        var o = document.createElement("option");
-        o.value = p.nombre; o.textContent = p.nombre;
-        if(asig[s.nombre].persona === p.nombre) o.selected = true;
-        sp.appendChild(o);
-      });
-
-      var og = document.createElement("option");
-      og.value = ""; og.textContent = "— sin recurso —";
-      sg.appendChild(og);
-      grupos.forEach(function(g){
-        if(!g.nombre) return;
-        var o = document.createElement("option");
-        o.value = g.nombre; o.textContent = g.nombre;
-        if(asig[s.nombre].grupo === g.nombre) o.selected = true;
-        sg.appendChild(o);
-      });
-
-      sp.addEventListener("change", function(){ asig[s.nombre].persona = this.value; });
-      sg.addEventListener("change", function(){ asig[s.nombre].grupo = this.value; });
-      caja.appendChild(f);
-    });
-  }
-
-  pintarEquipo("personas");
-  pintarEquipo("grupos");
-  pintarAsig();
-
-  $("add-persona").addEventListener("click", function(){
-    personas.push({ nombre:"", max:1 }); pintarEquipo("personas");
-  });
-  $("add-grupo").addEventListener("click", function(){
-    grupos.push({ nombre:"", max:1 }); pintarEquipo("grupos");
-  });
-
-  /* ----- guardar ----- */
+  // ----- guardar -----
   $("guardar-ajustes").addEventListener("click", async function(){
     var btn = this;
-    if(!Object.keys(horas).some(function(d){ return horas[d]; })){
+    var abiertos = Object.keys(borrador).filter(function(d){ return borrador[d]; });
+    if(!abiertos.length){
       $("aviso-ajustes").innerHTML = '<div class="aviso mal">Tenés que dejar abierto al menos un día.</div>';
       return;
     }
 
-    var equipo = { personas:{}, grupos:{}, asign:{} };
-    personas.forEach(function(p){ if(p.nombre.trim()) equipo.personas[p.nombre.trim()] = p.max; });
-    grupos.forEach(function(g){ if(g.nombre.trim()) equipo.grupos[g.nombre.trim()] = g.max; });
-    CONFIG.servicios.forEach(function(s){
-      equipo.asign[s.nombre] = { persona:asig[s.nombre].persona, grupo:asig[s.nombre].grupo };
+    var cupos = { capacidad: Number($("cap-total").value) || 1, grupos: {} };
+    $("lista-cupos").querySelectorAll("input").forEach(function(i){
+      var v = Number(i.value) || 0;
+      if(v > 0) cupos.grupos[i.getAttribute("data-grupo")] = v;
     });
 
     btn.disabled = true; btn.textContent = "Guardando…";
     var res;
-    try{ res = await guardarAjustesEnServidor(horas, equipo); }
+    try{ res = await guardarAjustesEnServidor(borrador, cupos); }
     catch(e){ res = { ok:false }; }
     btn.disabled = false; btn.textContent = "Guardar";
 
     if(res && res.ok){
-      CONFIG.horario = horas;
-      EQUIPO = equipo;
+      CONFIG.horario = borrador;
+      CONFIG.capacidad = cupos.capacidad;
+      CUPOS = cupos.grupos;
       $("aviso-ajustes").innerHTML = '<div class="aviso bien">Guardado.</div>';
-      pintarPanel();
     }else{
       $("aviso-ajustes").innerHTML = '<div class="aviso mal">No se pudo guardar. Revisá la conexión y probá de nuevo.</div>';
     }
