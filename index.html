@@ -211,6 +211,28 @@
   .chip.marcado{border-color:var(--violeta);background:#F7F2F8}
   .alcance{font-family:var(--mono);font-size:10px;letter-spacing:.08em;
     text-transform:uppercase;color:var(--gris);margin:12px 0 0}
+  .fila-horario{
+    display:grid;grid-template-columns:44px 1fr 1fr auto;gap:8px;
+    align-items:center;margin-bottom:8px;
+  }
+  .fila-horario .d{font-family:var(--mono);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+  .fila-horario input[type="time"]{
+    border:1px solid var(--regla);border-radius:3px;padding:8px 9px;
+    font-family:var(--mono);font-size:13px;width:100%;min-width:0;
+  }
+  .fila-horario input:disabled{opacity:.4}
+  .fila-horario label{font-size:11px;font-family:var(--mono);display:flex;gap:5px;align-items:center;white-space:nowrap}
+  .fila-cupo{
+    display:grid;grid-template-columns:1fr 78px;gap:8px 12px;
+    align-items:center;margin-bottom:8px;
+  }
+  .fila-cupo .nom{font-size:14px;line-height:1.3}
+  .fila-cupo .det{font-family:var(--mono);font-size:10px;color:var(--gris);display:block}
+  .fila-cupo input{
+    border:1px solid var(--regla);border-radius:3px;padding:9px 10px;
+    font-family:var(--mono);font-size:14px;width:100%;text-align:right;
+  }
+  .fila-cupo input:focus{border-color:var(--violeta)}
 
   .pago{background:var(--papel);border-radius:3px;padding:18px;margin-bottom:16px}
   .pago .monto{font-family:var(--display);font-size:34px;line-height:1.1;color:var(--violeta);margin:0 0 4px}
@@ -234,7 +256,7 @@
   .subir.cargado{border-style:solid;border-color:var(--ok);background:#F2F8F4}
   .subir.cargado .titulo{color:var(--ok)}
 
-    @media (max-width:520px){ .serv-precio{font-size:12px} }
+  @media (max-width:520px){ .serv-precio{font-size:12px} }
   @media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important} }
 </style>
 </head>
@@ -461,10 +483,14 @@ async function guardarPreciosEnServidor(lista){
 
 // Días cerrados: feriados, vacaciones. Se editan desde el panel.
 var CERRADOS = [];   // [{desde:"2026-09-15", hasta:"2026-09-22", nota:"Vacaciones"}]
-  // Mientras no lleguen los precios del servidor, mostramos "···" en vez de un número viejo.
+
+// Mientras no lleguen los precios del servidor, mostramos "···" en vez de un número viejo.
 var preciosListos = !API;
 
-  // Trae precios y días cerrados de una sola vez.
+// Cupos por grupo, editables desde el panel. Ej: { "Color": 1 }
+var CUPOS = {};
+
+// Trae precios, días cerrados, horarios y cupos de una sola vez.
 async function cargarInicio(){
   if(!API) return;
   try{
@@ -474,6 +500,14 @@ async function cargarInicio(){
       if(p[s.id] !== undefined && p[s.id] !== null && p[s.id] !== "") s.precio = Number(p[s.id]);
     });
     CERRADOS = j.cerrados || [];
+
+    // Horarios y cupos de la planilla pisan a los del código
+    if(j.horario && Object.keys(j.horario).length) CONFIG.horario = j.horario;
+    if(j.cupos){
+      if(Number(j.cupos.capacidad) > 0) CONFIG.capacidad = Number(j.cupos.capacidad);
+      CUPOS = j.cupos.grupos || {};
+    }
+
     preciosListos = true;
     pintarServicios();
     if(sel.servicio) pintarDias();
@@ -490,6 +524,10 @@ async function cargarCerrados(){
 
 async function guardarCerradosEnServidor(lista){
   return await enviar({ accion:"cerrados", pin:CONFIG.pin, lista:lista });
+}
+
+async function guardarAjustesEnServidor(horario, cupos){
+  return await enviar({ accion:"ajustes", pin:CONFIG.pin, horario:horario, cupos:cupos });
 }
 
 // Un bloque sin lista de servicios cierra TODO el salón.
@@ -565,9 +603,29 @@ function grupoDe(nombre){
   var s = servicioPorNombre(nombre);
   return (s && s.grupo) || nombre;
 }
+// El cupo sale de la planilla; si no está cargado, del código.
 function limiteDe(nombre){
+  var g = grupoDe(nombre);
+  if(Number(CUPOS[g]) > 0) return Number(CUPOS[g]);
   var s = servicioPorNombre(nombre);
   return (s && s.max) || CONFIG.capacidad;
+}
+
+// Lista de grupos sin repetir. Un servicio sin grupo es su propio grupo.
+function gruposUnicos(){
+  var vistos = [], out = [];
+  CONFIG.servicios.forEach(function(s){
+    var g = s.grupo || s.nombre;
+    if(vistos.indexOf(g) > -1) return;
+    vistos.push(g);
+    out.push({
+      grupo: g,
+      servicios: CONFIG.servicios
+        .filter(function(x){ return (x.grupo || x.nombre) === g; })
+        .map(function(x){ return x.nombre; })
+    });
+  });
+  return out;
 }
 // "desde $130.000" o "$20.000"
 function precioTexto(s){
@@ -635,7 +693,7 @@ function pintarServicios(){
     b.innerHTML = '<span><span class="serv-nom"></span><br><span class="serv-meta"></span></span><span class="serv-precio"></span>';
     b.querySelector(".serv-nom").textContent = s.nombre;
     b.querySelector(".serv-meta").textContent = "";
-        b.querySelector(".serv-precio").textContent =
+    b.querySelector(".serv-precio").textContent =
       preciosListos ? (precioTexto(s) || "a consultar") : "···";
     b.addEventListener("click", function(){
       sel.servicio = s; sel.hora = null;
@@ -1071,6 +1129,7 @@ async function pintarPanel(){
       '<button class="tab" data-t="turnos">Turnos</button>' +
       '<button class="tab" data-t="precios">Precios</button>' +
       '<button class="tab" data-t="cerrados">Cerrados</button>' +
+      '<button class="tab" data-t="ajustes">Ajustes</button>' +
     '</div><div id="panel-tab"></div>';
   c.querySelectorAll(".tab").forEach(function(b){
     b.setAttribute("aria-selected", b.dataset.t === panelTab ? "true" : "false");
@@ -1078,7 +1137,8 @@ async function pintarPanel(){
   });
   if(panelTab === "turnos") await tabTurnos();
   else if(panelTab === "precios") tabPrecios();
-  else await tabCerrados();
+  else if(panelTab === "cerrados") await tabCerrados();
+  else tabAjustes();
 }
 
 async function tabTurnos(){
@@ -1262,6 +1322,110 @@ async function tabCerrados(){
   });
 }
 
+function tabAjustes(){
+  var c = $("panel-tab");
+  c.innerHTML =
+    '<div class="conf-bloque"><h3>Días y horarios de atención</h3>' +
+      '<div id="lista-horarios"></div>' +
+      '<p class="nota">Destildá un día para dejar de atenderlo. El horario de cierre no frena a los servicios largos: si un turno arranca antes del último horario, se puede reservar aunque termine más tarde.</p>' +
+    '</div>' +
+    '<div class="conf-bloque"><h3>Cuántos turnos a la vez</h3>' +
+      '<div class="fila-cupo" style="margin-bottom:14px">' +
+        '<span class="nom"><strong>En todo el salón</strong>' +
+        '<span class="det">Tope general de turnos simultáneos</span></span>' +
+        '<input type="number" id="cap-total" min="1" max="10">' +
+      '</div>' +
+      '<div id="lista-cupos"></div>' +
+      '<p class="nota">Cada fila es un grupo de servicios que comparte a la misma persona. Dejalo en 0 para que use el tope general. Si sumás una peluquera, subí el número del grupo y el general.</p>' +
+    '</div>' +
+    '<div id="aviso-ajustes"></div>' +
+    '<div style="margin-top:16px"><button class="btn" id="guardar-ajustes">Guardar</button></div>';
+
+  // ----- horarios -----
+  var borrador = {};
+  [0,1,2,3,4,5,6].forEach(function(d){
+    var f = CONFIG.horario[String(d)];
+    borrador[String(d)] = f ? [f[0], f[1]] : null;
+  });
+
+  var caja = $("lista-horarios");
+  [1,2,3,4,5,6,0].forEach(function(d){
+    var f = document.createElement("div");
+    f.className = "fila-horario";
+    f.innerHTML = '<span class="d"></span><input type="time"><input type="time">' +
+      '<label><input type="checkbox"> abre</label>';
+    f.querySelector(".d").textContent = SEM[d];
+    var ins = f.querySelectorAll("input");
+    var abierto = !!borrador[String(d)];
+    ins[0].value = abierto ? borrador[String(d)][0] : "08:00";
+    ins[1].value = abierto ? borrador[String(d)][1] : "18:00";
+    ins[2].checked = abierto;
+    ins[0].disabled = !abierto; ins[1].disabled = !abierto;
+
+    function sync(){
+      var abre = ins[2].checked;
+      ins[0].disabled = !abre; ins[1].disabled = !abre;
+      borrador[String(d)] = abre ? [ins[0].value, ins[1].value] : null;
+    }
+    ins[0].addEventListener("input", sync);
+    ins[1].addEventListener("input", sync);
+    ins[2].addEventListener("change", sync);
+    caja.appendChild(f);
+  });
+
+  // ----- cupos -----
+  $("cap-total").value = CONFIG.capacidad;
+  var cajaC = $("lista-cupos");
+  gruposUnicos().forEach(function(g){
+    var f = document.createElement("div");
+    f.className = "fila-cupo";
+    f.innerHTML = '<span class="nom"></span><input type="number" min="0" max="10">';
+    var nom = f.querySelector(".nom");
+    nom.textContent = g.grupo;
+    if(g.servicios.length > 1 || g.servicios[0] !== g.grupo){
+      var det = document.createElement("span");
+      det.className = "det";
+      det.textContent = g.servicios.join(", ");
+      nom.appendChild(det);
+    }
+    var input = f.querySelector("input");
+    input.value = Number(CUPOS[g.grupo]) || 0;
+    input.setAttribute("data-grupo", g.grupo);
+    cajaC.appendChild(f);
+  });
+
+  // ----- guardar -----
+  $("guardar-ajustes").addEventListener("click", async function(){
+    var btn = this;
+    var abiertos = Object.keys(borrador).filter(function(d){ return borrador[d]; });
+    if(!abiertos.length){
+      $("aviso-ajustes").innerHTML = '<div class="aviso mal">Tenés que dejar abierto al menos un día.</div>';
+      return;
+    }
+
+    var cupos = { capacidad: Number($("cap-total").value) || 1, grupos: {} };
+    $("lista-cupos").querySelectorAll("input").forEach(function(i){
+      var v = Number(i.value) || 0;
+      if(v > 0) cupos.grupos[i.getAttribute("data-grupo")] = v;
+    });
+
+    btn.disabled = true; btn.textContent = "Guardando…";
+    var res;
+    try{ res = await guardarAjustesEnServidor(borrador, cupos); }
+    catch(e){ res = { ok:false }; }
+    btn.disabled = false; btn.textContent = "Guardar";
+
+    if(res && res.ok){
+      CONFIG.horario = borrador;
+      CONFIG.capacidad = cupos.capacidad;
+      CUPOS = cupos.grupos;
+      $("aviso-ajustes").innerHTML = '<div class="aviso bien">Guardado.</div>';
+    }else{
+      $("aviso-ajustes").innerHTML = '<div class="aviso mal">No se pudo guardar. Revisá la conexión y probá de nuevo.</div>';
+    }
+  });
+}
+
 /* ---------- arranque ---------- */
 $("ir-panel").addEventListener("click", function(){
   $("vista-clienta").hidden = true; $("vista-panel").hidden = false;
@@ -1285,7 +1449,7 @@ if(!API){
     '<div class="banner"><strong>Modo demo.</strong> Falta conectar el backend: los turnos no se guardan ' +
     'y no se bloquean para las demás. Pegá la URL de tu Apps Script en la variable <code>API</code>.</div>';
 }
-// Dibujamos ya con los precios del código, y actualizamos cuando llegue el servidor.
+// Dibujamos ya la lista, y completamos los precios cuando llegue el servidor.
 pintarServicios();
 cargarInicio();
 
